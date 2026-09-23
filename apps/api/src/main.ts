@@ -1,9 +1,11 @@
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
+import { loadRootEnv } from '@fillco/db';
 import { createApp } from './app.factory';
 import { loadConfig } from './config';
 
 async function main(): Promise<void> {
+  loadRootEnv();
   const config = loadConfig();
   const app = await createApp();
   await app.listen(config.API_PORT);

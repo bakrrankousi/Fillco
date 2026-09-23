@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { runIntegrityChecks } from '../integrity';
+import { loadRootEnv } from '../env';
+
+loadRootEnv();
 
 async function main() {
   const prisma = new PrismaClient();

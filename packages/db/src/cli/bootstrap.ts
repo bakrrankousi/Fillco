@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { DEFAULT_ROLES } from '@fillco/contracts';
 import { bootstrap } from '../bootstrap';
+import { loadRootEnv } from '../env';
+
+loadRootEnv();
 
 /** Loads reference data, roles, the company and the first admin (ADMIN_EMAIL / ADMIN_PASSWORD). */
 async function main() {

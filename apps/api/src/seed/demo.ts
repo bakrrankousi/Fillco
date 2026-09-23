@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { DEFAULT_ROLES, type DocumentLineInput } from '@fillco/contracts';
-import { bootstrap, hashPassword } from '@fillco/db';
+import { bootstrap, hashPassword, loadRootEnv } from '@fillco/db';
 import { addDays, todayInTimeZone } from '@fillco/domain';
 import { AppModule } from '../app.module';
 import { actorForUser } from '../common/actor-factory';
@@ -49,6 +49,7 @@ const RATES_TO_USD: Record<string, [start: number, end: number]> = {
 };
 
 async function main(): Promise<void> {
+  loadRootEnv();
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   const prisma = app.get(PrismaService);
   try {

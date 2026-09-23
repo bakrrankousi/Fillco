@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "start": "turbo run start --filter=@fillco/api --filter=@fillco/web",
     "dev": "turbo run dev --parallel",
     "typecheck": "turbo run typecheck",
     "lint": "eslint . --max-warnings=0",

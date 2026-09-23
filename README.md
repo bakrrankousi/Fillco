@@ -18,21 +18,52 @@ Supplier → Purchase Order → Production → Shipment → Documents → Custom
 purchase orders with back-to-back allocation to customer orders, global search and a first dashboard.
 Phase 2 (shipments, documents, invoices, payments) is next.
 
-## Running locally
+## Running on your own computer
 
-Requirements: Node 22, pnpm 10, PostgreSQL 16 (or `docker compose up -d`).
+### 1. Install three free programs (once)
+
+| Program            | Where to get it                                 | Why                |
+| ------------------ | ----------------------------------------------- | ------------------ |
+| **Node.js 22 LTS** | https://nodejs.org (the "LTS" button)           | Runs the app       |
+| **Docker Desktop** | https://www.docker.com/products/docker-desktop  | Runs the database  |
+| **Git** (optional) | https://git-scm.com (only if you don't use ZIP) | Downloads the code |
+
+Open Docker Desktop once after installing it and leave it running.
+
+### 2. Download the code
+
+On GitHub open this repository, pick the branch (e.g. `claude/confident-edison-v2n5az`) in the branch
+menu, then **Code → Download ZIP** and unzip it. Or with Git:
 
 ```bash
-cp .env.example .env          # adjust DATABASE_URL / TEST_DATABASE_URL if needed
-pnpm install
-pnpm build
-pnpm db:migrate               # apply migrations
-pnpm db:seed                  # roles, admin user and demo data
-pnpm --filter @fillco/api start    # API on http://localhost:4000/api/v1
-pnpm --filter @fillco/web start    # web app on http://localhost:3000
+git clone -b claude/confident-edison-v2n5az https://github.com/bakrrankousi/fillco.git
 ```
 
-Use `pnpm dev` while developing. Demo users all use the password `Fillco-Demo-2026`:
+### 3. First-time setup
+
+Open a terminal in the project folder (Windows: right-click the folder → "Open in Terminal";
+Mac: Terminal, then `cd` into the folder) and run these one by one:
+
+```bash
+npm install -g pnpm@10        # the package manager this project uses
+cp .env.example .env          # Windows: copy .env.example .env
+docker compose up -d          # starts the PostgreSQL database
+pnpm install                  # downloads the libraries (a few minutes)
+pnpm build                    # builds the app
+pnpm db:migrate               # creates the database tables
+pnpm db:seed                  # adds roles, users and demo data
+```
+
+### 4. Start the app
+
+```bash
+pnpm start
+```
+
+Open **http://localhost:3000** in your browser. Stop the app with `Ctrl + C`. Next time, only
+Docker Desktop must be running and `pnpm start` is enough.
+
+Demo users all use the password `Fillco-Demo-2026`:
 
 | User                         | Role       |
 | ---------------------------- | ---------- |
@@ -44,6 +75,11 @@ Use `pnpm dev` while developing. Demo users all use the password `Fillco-Demo-20
 | `emre.demir@fillco.local`    | Logistics  |
 | `nadia.farouk@fillco.local`  | Finance    |
 | `viewer@fillco.local`        | Viewer     |
+
+**If something goes wrong:** `port 5432 is already allocated` means another PostgreSQL is running on
+your computer; stop it or change the port in `docker-compose.yml` and `.env`. `pnpm: command not found`
+means step 3's first line failed; close and reopen the terminal and try again. Developers can use
+`pnpm dev` for automatic reloading while editing.
 
 ## Checks
 
