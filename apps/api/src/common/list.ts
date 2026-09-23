@@ -47,12 +47,17 @@ export async function sendExcel<T>(
   columns: ExportColumn<T>[],
   rows: T[],
 ): Promise<void> {
-  if (!actor.permissions.has('export.data')) throw new ForbiddenError('You do not have permission to export data');
+  if (!actor.permissions.has('export.data'))
+    throw new ForbiddenError('You do not have permission to export data');
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Fillco';
   wb.created = new Date();
   const ws = wb.addWorksheet(sheet, { views: [{ state: 'frozen', ySplit: 1 }] });
-  ws.columns = columns.map((c) => ({ header: c.header, width: c.width ?? 16, style: c.numFmt ? { numFmt: c.numFmt } : {} }));
+  ws.columns = columns.map((c) => ({
+    header: c.header,
+    width: c.width ?? 16,
+    style: c.numFmt ? { numFmt: c.numFmt } : {},
+  }));
   for (const row of rows) {
     ws.addRow(
       columns.map((c) => {
@@ -67,7 +72,10 @@ export async function sendExcel<T>(
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
   const buffer = await wb.xlsx.writeBuffer();
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${filename}-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+  );
   res.send(Buffer.from(buffer as ArrayBuffer));
 }
 

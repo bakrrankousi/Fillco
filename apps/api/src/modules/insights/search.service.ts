@@ -27,7 +27,14 @@ export class SearchService {
           .findMany({
             where: {
               ...customerScope(actor),
-              OR: [{ companyName: c }, { code: c }, { email: c }, { phone: c }, { whatsapp: c }, { taxId: c }],
+              OR: [
+                { companyName: c },
+                { code: c },
+                { email: c },
+                { phone: c },
+                { whatsapp: c },
+                { taxId: c },
+              ],
             },
             take: PER_TYPE,
             orderBy: { companyName: 'asc' },
@@ -43,7 +50,10 @@ export class SearchService {
           ),
         this.prisma.customerContact
           .findMany({
-            where: { customer: customerScope(actor), OR: [{ name: c }, { email: c }, { phone: c }, { whatsapp: c }] },
+            where: {
+              customer: customerScope(actor),
+              OR: [{ name: c }, { email: c }, { phone: c }, { whatsapp: c }],
+            },
             include: { customer: true },
             take: PER_TYPE,
           })
@@ -62,7 +72,10 @@ export class SearchService {
       tasks.push(
         this.prisma.supplier
           .findMany({
-            where: { companyId: actor.companyId, OR: [{ companyName: c }, { code: c }, { email: c }, { phone: c }, { whatsapp: c }] },
+            where: {
+              companyId: actor.companyId,
+              OR: [{ companyName: c }, { code: c }, { email: c }, { phone: c }, { whatsapp: c }],
+            },
             take: PER_TYPE,
             orderBy: { companyName: 'asc' },
           })
@@ -77,7 +90,10 @@ export class SearchService {
           ),
         this.prisma.supplierContact
           .findMany({
-            where: { supplier: { companyId: actor.companyId }, OR: [{ name: c }, { email: c }, { phone: c }, { whatsapp: c }] },
+            where: {
+              supplier: { companyId: actor.companyId },
+              OR: [{ name: c }, { email: c }, { phone: c }, { whatsapp: c }],
+            },
             include: { supplier: true },
             take: PER_TYPE,
           })
@@ -96,7 +112,13 @@ export class SearchService {
       tasks.push(
         this.prisma.product
           .findMany({
-            where: { OR: [{ name: c }, { code: c }, { variants: { some: { OR: [{ displayName: c }, { sku: c }] } } }] },
+            where: {
+              OR: [
+                { name: c },
+                { code: c },
+                { variants: { some: { OR: [{ displayName: c }, { sku: c }] } } },
+              ],
+            },
             include: { category: true },
             take: PER_TYPE,
           })
@@ -115,7 +137,12 @@ export class SearchService {
       tasks.push(
         this.prisma.quotation
           .findMany({
-            where: { companyId: actor.companyId, ...viaCustomerScope(actor), status: { not: 'SUPERSEDED' }, number: c },
+            where: {
+              companyId: actor.companyId,
+              ...viaCustomerScope(actor),
+              status: { not: 'SUPERSEDED' },
+              number: c,
+            },
             include: { customer: true },
             take: PER_TYPE,
             orderBy: { createdAt: 'desc' },
@@ -135,7 +162,11 @@ export class SearchService {
       tasks.push(
         this.prisma.salesOrder
           .findMany({
-            where: { companyId: actor.companyId, ...viaCustomerScope(actor), OR: [{ number: c }, { customerPoRef: c }] },
+            where: {
+              companyId: actor.companyId,
+              ...viaCustomerScope(actor),
+              OR: [{ number: c }, { customerPoRef: c }],
+            },
             include: { customer: true },
             take: PER_TYPE,
             orderBy: { createdAt: 'desc' },
@@ -174,6 +205,8 @@ export class SearchService {
     const results = (await Promise.all(tasks)).flat();
     // Exact document-number hits first.
     const upper = q.toUpperCase();
-    return results.sort((a, b) => Number(b.title.toUpperCase() === upper) - Number(a.title.toUpperCase() === upper));
+    return results.sort(
+      (a, b) => Number(b.title.toUpperCase() === upper) - Number(a.title.toUpperCase() === upper),
+    );
   }
 }

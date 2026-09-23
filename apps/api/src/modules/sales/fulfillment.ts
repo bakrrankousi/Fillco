@@ -18,7 +18,10 @@ interface Row {
 }
 
 /** Per-line purchase progress from the v_so_line_fulfillment view, grouped by order. */
-export async function loadFulfillment(tx: Tx, salesOrderIds: string[]): Promise<Map<string, LineFulfillment[]>> {
+export async function loadFulfillment(
+  tx: Tx,
+  salesOrderIds: string[],
+): Promise<Map<string, LineFulfillment[]>> {
   const out = new Map<string, LineFulfillment[]>();
   if (salesOrderIds.length === 0) return out;
   const rows = await tx.$queryRaw<Row[]>`

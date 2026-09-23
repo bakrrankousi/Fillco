@@ -12,7 +12,13 @@ import {
 const defs: AttributeDefinition[] = [
   { code: 'denier', label: 'Denier', dataType: 'NUMBER', unit: 'D', minValue: 0.5, maxValue: 100 },
   { code: 'cut_length_mm', label: 'Cut length', dataType: 'NUMBER', unit: 'mm' },
-  { code: 'siliconized', label: 'Siliconized', dataType: 'BOOLEAN', trueLabel: 'Siliconized', falseLabel: 'Non-siliconized' },
+  {
+    code: 'siliconized',
+    label: 'Siliconized',
+    dataType: 'BOOLEAN',
+    trueLabel: 'Siliconized',
+    falseLabel: 'Non-siliconized',
+  },
   {
     code: 'color',
     label: 'Color',
@@ -34,7 +40,12 @@ const rules: CategoryAttributeRule[] = [
 
 describe('flexible product specifications', () => {
   it('coerces and validates values', () => {
-    const r = validateSpec(defs, rules, { denier: '7', cut_length_mm: 64, color: 'OPTICAL_WHITE', siliconized: 'yes' });
+    const r = validateSpec(defs, rules, {
+      denier: '7',
+      cut_length_mm: 64,
+      color: 'OPTICAL_WHITE',
+      siliconized: 'yes',
+    });
     expect(r.ok).toBe(true);
     expect(r.values).toEqual({ denier: 7, cut_length_mm: 64, siliconized: true, color: 'OPTICAL_WHITE' });
   });
@@ -47,7 +58,12 @@ describe('flexible product specifications', () => {
     const fixed = { siliconized: true };
     const ok = validateSpec(defs, rules, { denier: 7, cut_length_mm: 64, color: 'RAW_WHITE' }, fixed);
     expect(ok.values.siliconized).toBe(true);
-    const bad = validateSpec(defs, rules, { denier: 7, cut_length_mm: 64, color: 'RAW_WHITE', siliconized: false }, fixed);
+    const bad = validateSpec(
+      defs,
+      rules,
+      { denier: 7, cut_length_mm: 64, color: 'RAW_WHITE', siliconized: false },
+      fixed,
+    );
     expect(bad.errors.siliconized).toMatch(/fixed/);
   });
   it('produces a canonical key independent of input order and non-defining fields', () => {

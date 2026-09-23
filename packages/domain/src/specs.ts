@@ -44,10 +44,13 @@ export interface SpecValidationResult {
 function coerce(def: AttributeDefinition, raw: unknown): { value?: SpecValue; error?: string } {
   switch (def.dataType) {
     case 'NUMBER': {
-      const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+      const n =
+        typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
       if (!Number.isFinite(n)) return { error: `${def.label} must be a number` };
-      if (def.minValue != null && n < def.minValue) return { error: `${def.label} must be ≥ ${def.minValue}` };
-      if (def.maxValue != null && n > def.maxValue) return { error: `${def.label} must be ≤ ${def.maxValue}` };
+      if (def.minValue != null && n < def.minValue)
+        return { error: `${def.label} must be ≥ ${def.minValue}` };
+      if (def.maxValue != null && n > def.maxValue)
+        return { error: `${def.label} must be ≤ ${def.maxValue}` };
       return { value: n };
     }
     case 'BOOLEAN': {
@@ -92,7 +95,8 @@ export function validateSpec(
   const values: SpecValues = {};
 
   for (const key of Object.keys(input)) {
-    if (!ruleByCode.has(key) && !(key in fixed)) errors[key] = `Attribute "${key}" does not apply to this product`;
+    if (!ruleByCode.has(key) && !(key in fixed))
+      errors[key] = `Attribute "${key}" does not apply to this product`;
   }
   for (const rule of [...rules].sort((a, b) => a.sortOrder - b.sortOrder)) {
     const def = byCode.get(rule.code);

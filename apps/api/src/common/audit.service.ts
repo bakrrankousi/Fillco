@@ -107,7 +107,13 @@ export class AuditService {
     });
   }
 
-  async outbox(tx: Tx, eventType: string, aggregateType: string, aggregateId: string, payload: Plain): Promise<void> {
+  async outbox(
+    tx: Tx,
+    eventType: string,
+    aggregateType: string,
+    aggregateId: string,
+    payload: Plain,
+  ): Promise<void> {
     await tx.outboxEvent.create({
       data: { eventType, aggregateType, aggregateId, payload: normalize(payload) as Prisma.InputJsonValue },
     });

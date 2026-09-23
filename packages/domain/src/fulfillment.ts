@@ -43,7 +43,9 @@ function lowerBound(ordered: Decimal, tolerancePct: Decimal): Decimal {
 }
 
 export function upperBound(ordered: DecimalInput, tolerancePct: DecimalInput = 0): Decimal {
-  return dec(ordered).times(new Decimal(100).plus(dec(tolerancePct))).div(100);
+  return dec(ordered)
+    .times(new Decimal(100).plus(dec(tolerancePct)))
+    .div(100);
 }
 
 /**

@@ -18,7 +18,10 @@ export class CompanyService {
   constructor(private readonly prisma: PrismaService) {}
 
   async get(companyId: string, tx: Tx = this.prisma): Promise<CompanyContext> {
-    const c = await tx.company.findUniqueOrThrow({ where: { id: companyId }, include: { baseCurrencyRef: true } });
+    const c = await tx.company.findUniqueOrThrow({
+      where: { id: companyId },
+      include: { baseCurrencyRef: true },
+    });
     return {
       id: c.id,
       name: c.name,

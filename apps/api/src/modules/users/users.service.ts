@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type { CreateUserInput, Permission, RoleCode, RoleDto, UpdateUserInput, UserDto } from '@fillco/contracts';
+import type {
+  CreateUserInput,
+  Permission,
+  RoleCode,
+  RoleDto,
+  UpdateUserInput,
+  UserDto,
+} from '@fillco/contracts';
 import { hashPassword, Prisma } from '@fillco/db';
 import type { Actor } from '../../common/actor';
 import { AuditService } from '../../common/audit.service';
@@ -73,7 +80,12 @@ export class UsersService {
         entityType: 'user',
         entityId: u.id,
         action: 'create',
-        after: { email: u.email, fullName: u.fullName, isActive: u.isActive, roles: input.roleCodes.join(',') },
+        after: {
+          email: u.email,
+          fullName: u.fullName,
+          isActive: u.isActive,
+          roles: input.roleCodes.join(','),
+        },
       });
       return u;
     });
@@ -84,8 +96,14 @@ export class UsersService {
     const current = await this.prisma.user.findFirst({ where: { id, companyId: actor.companyId }, include });
     if (!current) throw new NotFoundError('User', id);
     assertVersion('User', current.version, input.version);
-    if (id === actor.userId && input.isActive === false) throw new BusinessRuleError('You cannot deactivate yourself');
-    if (id === actor.userId && input.roleCodes && !input.roleCodes.includes('ADMIN') && actor.roles.includes('ADMIN')) {
+    if (id === actor.userId && input.isActive === false)
+      throw new BusinessRuleError('You cannot deactivate yourself');
+    if (
+      id === actor.userId &&
+      input.roleCodes &&
+      !input.roleCodes.includes('ADMIN') &&
+      actor.roles.includes('ADMIN')
+    ) {
       throw new BusinessRuleError('You cannot remove your own Admin role');
     }
     const roleIds = input.roleCodes ? await this.roleIds(input.roleCodes) : undefined;
@@ -105,14 +123,33 @@ export class UsersService {
         include,
       });
       if (input.isActive === false) {
-        await tx.session.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+        await tx.session.updateMany({
+          where: { userId: id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
       }
       await this.audit.log(tx, actor, {
         entityType: 'user',
         entityId: id,
         action: 'update',
-        before: { fullName: current.fullName, phone: current.phone, isActive: current.isActive, roles: current.roles.map((r) => r.role.code).sort().join(',') },
-        after: { fullName: u.fullName, phone: u.phone, isActive: u.isActive, roles: u.roles.map((r) => r.role.code).sort().join(',') },
+        before: {
+          fullName: current.fullName,
+          phone: current.phone,
+          isActive: current.isActive,
+          roles: current.roles
+            .map((r) => r.role.code)
+            .sort()
+            .join(','),
+        },
+        after: {
+          fullName: u.fullName,
+          phone: u.phone,
+          isActive: u.isActive,
+          roles: u.roles
+            .map((r) => r.role.code)
+            .sort()
+            .join(','),
+        },
       });
       return u;
     });
@@ -126,9 +163,18 @@ export class UsersService {
     await this.prisma.tx(async (tx) => {
       await tx.user.update({
         where: { id },
-        data: { passwordHash, mustChangePassword: true, failedLoginCount: 0, lockedUntil: null, version: { increment: 1 } },
+        data: {
+          passwordHash,
+          mustChangePassword: true,
+          failedLoginCount: 0,
+          lockedUntil: null,
+          version: { increment: 1 },
+        },
       });
-      await tx.session.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.session.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
       await this.audit.log(tx, actor, { entityType: 'user', entityId: id, action: 'password_reset' });
     });
   }

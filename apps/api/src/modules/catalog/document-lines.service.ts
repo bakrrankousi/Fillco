@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { DocumentLineDto, DocumentLineInput, SpecValues } from '@fillco/contracts';
 import { Prisma } from '@fillco/db';
-import { computeDocumentTotals, computeLineTotals, dec, Decimal, DocumentTotals, toBaseQty } from '@fillco/domain';
+import {
+  computeDocumentTotals,
+  computeLineTotals,
+  dec,
+  Decimal,
+  DocumentTotals,
+  toBaseQty,
+} from '@fillco/domain';
 import { BusinessRuleError } from '../../common/errors';
 import type { Tx } from '../../common/prisma.service';
 import { ref } from '../../common/serialize';
@@ -59,20 +66,33 @@ export class DocumentLinesService {
     const cur = await tx.currency.findUnique({ where: { code: currency } });
     if (!cur || !cur.isActive) throw new BusinessRuleError(`Currency ${currency} is not available`);
     const uoms = new Map((await tx.uom.findMany()).map((u) => [u.code, u]));
-    const packagingIds = new Set((await tx.packagingType.findMany({ select: { id: true } })).map((p) => p.id));
+    const packagingIds = new Set(
+      (await tx.packagingType.findMany({ select: { id: true } })).map((p) => p.id),
+    );
 
     const prepared: PreparedLine[] = [];
     for (const [index, line] of lines.entries()) {
       const uom = uoms.get(line.uom);
-      if (!uom) throw new BusinessRuleError(`Line ${index + 1}: unknown unit ${line.uom}`, 'VALIDATION', undefined, { [`lines.${index}.uom`]: ['Unknown unit'] });
+      if (!uom)
+        throw new BusinessRuleError(`Line ${index + 1}: unknown unit ${line.uom}`, 'VALIDATION', undefined, {
+          [`lines.${index}.uom`]: ['Unknown unit'],
+        });
       if (uom.dimension !== 'MASS') {
         throw new BusinessRuleError(`Line ${index + 1}: only weight units are supported for trading lines`);
       }
       if (line.packagingTypeId && !packagingIds.has(line.packagingTypeId)) {
         throw new BusinessRuleError(`Line ${index + 1}: unknown packaging type`);
       }
-      const { variant, values } = await this.catalog.resolveVariant(tx, line.productId, line.attributes, `lines.${index}.attributes`);
-      const totals = computeLineTotals({ qty: line.qty, unitPrice: line.unitPrice, discountPct: line.discountPct }, cur.minorUnits);
+      const { variant, values } = await this.catalog.resolveVariant(
+        tx,
+        line.productId,
+        line.attributes,
+        `lines.${index}.attributes`,
+      );
+      const totals = computeLineTotals(
+        { qty: line.qty, unitPrice: line.unitPrice, discountPct: line.discountPct },
+        cur.minorUnits,
+      );
       prepared.push({
         id: line.id,
         lineNo: index + 1,
@@ -99,7 +119,11 @@ export class DocumentLinesService {
   }
 
   /** Common DTO fields for a stored line. Prices are hidden when `showPrice` is false. */
-  static toDto(line: LineRow, packaging: Map<string, { id: string; code: string; name: string }>, showPrice = true): DocumentLineDto {
+  static toDto(
+    line: LineRow,
+    packaging: Map<string, { id: string; code: string; name: string }>,
+    showPrice = true,
+  ): DocumentLineDto {
     return {
       id: line.id,
       lineNo: line.lineNo,

@@ -13,7 +13,8 @@ export async function actorForUser(prisma: PrismaService, email: string): Promis
     include: { roles: { include: { role: { include: { permissions: true } } } } },
   });
   const permissions = new Set<Permission>();
-  for (const ur of user.roles) for (const p of ur.role.permissions) permissions.add(p.permission as Permission);
+  for (const ur of user.roles)
+    for (const p of ur.role.permissions) permissions.add(p.permission as Permission);
   return {
     userId: user.id,
     sessionId: 'system',

@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+} from '@nestjs/common';
 import {
   addressSchema,
   contactSchema,
@@ -40,20 +52,27 @@ export class CustomersController {
   ): Promise<Page<CustomerListItemDto> | void> {
     const result = await this.customers.list(actor, q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<CustomerListItemDto>(res, actor, 'customers', 'Customers', [
-      { header: 'Code', value: (r) => r.code, width: 10 },
-      { header: 'Company', value: (r) => r.companyName, width: 36 },
-      { header: 'Country', value: (r) => r.countryCode, width: 8 },
-      { header: 'City', value: (r) => r.city },
-      { header: 'Status', value: (r) => r.status },
-      { header: 'Currency', value: (r) => r.defaultCurrency, width: 9 },
-      { header: 'Payment terms', value: (r) => r.paymentTerm, width: 30 },
-      { header: 'Credit limit', value: (r) => r.creditLimit, numFmt: MONEY_FMT },
-      { header: 'Limit currency', value: (r) => r.creditLimitCurrency, width: 9 },
-      { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
-      { header: 'Phone', value: (r) => r.phone, width: 18 },
-      { header: 'Email', value: (r) => r.email, width: 28 },
-    ], result.rows);
+    await sendExcel<CustomerListItemDto>(
+      res,
+      actor,
+      'customers',
+      'Customers',
+      [
+        { header: 'Code', value: (r) => r.code, width: 10 },
+        { header: 'Company', value: (r) => r.companyName, width: 36 },
+        { header: 'Country', value: (r) => r.countryCode, width: 8 },
+        { header: 'City', value: (r) => r.city },
+        { header: 'Status', value: (r) => r.status },
+        { header: 'Currency', value: (r) => r.defaultCurrency, width: 9 },
+        { header: 'Payment terms', value: (r) => r.paymentTerm, width: 30 },
+        { header: 'Credit limit', value: (r) => r.creditLimit, numFmt: MONEY_FMT },
+        { header: 'Limit currency', value: (r) => r.creditLimitCurrency, width: 9 },
+        { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
+        { header: 'Phone', value: (r) => r.phone, width: 18 },
+        { header: 'Email', value: (r) => r.email, width: 28 },
+      ],
+      result.rows,
+    );
   }
 
   @Get(':id')
@@ -70,7 +89,10 @@ export class CustomersController {
 
   @Post()
   @RequirePermission('customer.create')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(createCustomerSchema)) body: CreateCustomerInput): Promise<CustomerDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(createCustomerSchema)) body: CreateCustomerInput,
+  ): Promise<CustomerDto> {
     return this.customers.create(actor, body);
   }
 

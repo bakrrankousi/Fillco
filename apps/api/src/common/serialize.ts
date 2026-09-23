@@ -27,9 +27,17 @@ export function tsReq(value: Date): string {
   return value.toISOString();
 }
 
-export function ref<T extends { id: string; name?: string | null; companyName?: string | null; fullName?: string | null; code?: string | null; number?: string | null; locode?: string | null }>(
-  row: T | null | undefined,
-): { id: string; code?: string | null; name: string } | null {
+export function ref<
+  T extends {
+    id: string;
+    name?: string | null;
+    companyName?: string | null;
+    fullName?: string | null;
+    code?: string | null;
+    number?: string | null;
+    locode?: string | null;
+  },
+>(row: T | null | undefined): { id: string; code?: string | null; name: string } | null {
   if (!row) return null;
   return {
     id: row.id,
@@ -38,6 +46,8 @@ export function ref<T extends { id: string; name?: string | null; companyName?: 
   };
 }
 
-export function refReq<T extends Parameters<typeof ref>[0] & object>(row: T): { id: string; code?: string | null; name: string } {
+export function refReq<T extends Parameters<typeof ref>[0] & object>(
+  row: T,
+): { id: string; code?: string | null; name: string } {
   return ref(row)!;
 }

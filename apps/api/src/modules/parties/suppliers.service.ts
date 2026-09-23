@@ -52,7 +52,9 @@ export class SuppliersService {
   ) {}
 
   private async bankDto(b: BankRow, reveal: boolean): Promise<BankAccountDto> {
-    const createdBy = b.createdById ? await this.prisma.user.findUnique({ where: { id: b.createdById } }) : null;
+    const createdBy = b.createdById
+      ? await this.prisma.user.findUnique({ where: { id: b.createdById } })
+      : null;
     return {
       id: b.id,
       bankName: b.bankName,
@@ -72,7 +74,9 @@ export class SuppliersService {
   }
 
   private async toDto(actor: Actor, s: SupplierRow): Promise<SupplierDto> {
-    const loadingPort = s.defaultLoadingPortId ? await this.prisma.port.findUnique({ where: { id: s.defaultLoadingPortId } }) : null;
+    const loadingPort = s.defaultLoadingPortId
+      ? await this.prisma.port.findUnique({ where: { id: s.defaultLoadingPortId } })
+      : null;
     const reveal = can(actor, 'supplier_bank.manage') || can(actor, 'supplier_bank.approve');
     return {
       id: s.id,
@@ -106,7 +110,10 @@ export class SuppliersService {
     };
   }
 
-  async list(actor: Actor, q: SupplierFilter): Promise<{ page: Page<SupplierListItemDto>; rows: SupplierListItemDto[] }> {
+  async list(
+    actor: Actor,
+    q: SupplierFilter,
+  ): Promise<{ page: Page<SupplierListItemDto>; rows: SupplierListItemDto[] }> {
     const where: Prisma.SupplierWhereInput = {
       companyId: actor.companyId,
       ...(q.status ? { status: q.status as Prisma.EnumSupplierStatusFilter['equals'] } : {}),
@@ -120,7 +127,11 @@ export class SuppliersService {
               { email: contains(q.q) },
               { phone: contains(q.q) },
               { city: contains(q.q) },
-              { contacts: { some: { OR: [{ name: contains(q.q) }, { email: contains(q.q) }, { phone: contains(q.q) }] } } },
+              {
+                contacts: {
+                  some: { OR: [{ name: contains(q.q) }, { email: contains(q.q) }, { phone: contains(q.q) }] },
+                },
+              },
             ],
           }
         : {}),
@@ -162,7 +173,10 @@ export class SuppliersService {
   }
 
   private async find(actor: Actor, id: string): Promise<SupplierRow> {
-    const s = await this.prisma.supplier.findFirst({ where: { id, companyId: actor.companyId }, include: detailInclude });
+    const s = await this.prisma.supplier.findFirst({
+      where: { id, companyId: actor.companyId },
+      include: detailInclude,
+    });
     if (!s) throw new NotFoundError('Supplier', id);
     return s;
   }
@@ -195,7 +209,10 @@ export class SuppliersService {
         supplierId: s.id,
         summary: `Supplier ${s.code} ${s.companyName} created`,
       });
-      await this.audit.outbox(tx, 'supplier.created', 'supplier', s.id, { code: s.code, companyName: s.companyName });
+      await this.audit.outbox(tx, 'supplier.created', 'supplier', s.id, {
+        code: s.code,
+        companyName: s.companyName,
+      });
       return s;
     });
     return this.toDto(actor, created);
@@ -204,7 +221,11 @@ export class SuppliersService {
   async update(actor: Actor, id: string, input: UpdateSupplierInput): Promise<SupplierDto> {
     const current = await this.find(actor, id);
     assertVersion('Supplier', current.version, input.version);
-    if (input.status && input.status !== current.status && (input.status === 'INACTIVE' || current.status === 'INACTIVE')) {
+    if (
+      input.status &&
+      input.status !== current.status &&
+      (input.status === 'INACTIVE' || current.status === 'INACTIVE')
+    ) {
       if (!can(actor, 'supplier.archive')) throw new ForbiddenError('You cannot archive suppliers');
     }
     const { version: _v, ...fields } = input;
@@ -214,7 +235,13 @@ export class SuppliersService {
         data: { ...fields, updatedById: actor.userId, version: { increment: 1 } },
         include: detailInclude,
       });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: id, action: 'update', before: current, after: s });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: id,
+        action: 'update',
+        before: current,
+        after: s,
+      });
       return s;
     });
     return this.toDto(actor, updated);
@@ -225,21 +252,39 @@ export class SuppliersService {
   async addContact(actor: Actor, supplierId: string, input: ContactInput): Promise<SupplierDto> {
     await this.find(actor, supplierId);
     await this.prisma.tx(async (tx) => {
-      if (input.isPrimary) await tx.supplierContact.updateMany({ where: { supplierId }, data: { isPrimary: false } });
+      if (input.isPrimary)
+        await tx.supplierContact.updateMany({ where: { supplierId }, data: { isPrimary: false } });
       const c = await tx.supplierContact.create({ data: { ...input, supplierId } });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: supplierId, action: 'contact_added', after: c });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: supplierId,
+        action: 'contact_added',
+        after: c,
+      });
     });
     return this.get(actor, supplierId);
   }
 
-  async updateContact(actor: Actor, supplierId: string, contactId: string, input: ContactInput): Promise<SupplierDto> {
+  async updateContact(
+    actor: Actor,
+    supplierId: string,
+    contactId: string,
+    input: ContactInput,
+  ): Promise<SupplierDto> {
     await this.find(actor, supplierId);
     await this.prisma.tx(async (tx) => {
       const before = await tx.supplierContact.findFirst({ where: { id: contactId, supplierId } });
       if (!before) throw new NotFoundError('Contact', contactId);
-      if (input.isPrimary) await tx.supplierContact.updateMany({ where: { supplierId }, data: { isPrimary: false } });
+      if (input.isPrimary)
+        await tx.supplierContact.updateMany({ where: { supplierId }, data: { isPrimary: false } });
       const after = await tx.supplierContact.update({ where: { id: contactId }, data: input });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: supplierId, action: 'contact_updated', before, after });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: supplierId,
+        action: 'contact_updated',
+        before,
+        after,
+      });
     });
     return this.get(actor, supplierId);
   }
@@ -250,7 +295,13 @@ export class SuppliersService {
       const before = await tx.supplierContact.findFirst({ where: { id: contactId, supplierId } });
       if (!before) throw new NotFoundError('Contact', contactId);
       await tx.supplierContact.delete({ where: { id: contactId } });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: supplierId, action: 'contact_removed', before, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: supplierId,
+        action: 'contact_removed',
+        before,
+        after: null,
+      });
     });
     return this.get(actor, supplierId);
   }
@@ -258,9 +309,18 @@ export class SuppliersService {
   async addAddress(actor: Actor, supplierId: string, input: AddressInput): Promise<SupplierDto> {
     await this.find(actor, supplierId);
     await this.prisma.tx(async (tx) => {
-      if (input.isDefault) await tx.supplierAddress.updateMany({ where: { supplierId, type: input.type }, data: { isDefault: false } });
+      if (input.isDefault)
+        await tx.supplierAddress.updateMany({
+          where: { supplierId, type: input.type },
+          data: { isDefault: false },
+        });
       const a = await tx.supplierAddress.create({ data: { ...input, supplierId } });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: supplierId, action: 'address_added', after: a });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: supplierId,
+        action: 'address_added',
+        after: a,
+      });
     });
     return this.get(actor, supplierId);
   }
@@ -271,7 +331,13 @@ export class SuppliersService {
       const before = await tx.supplierAddress.findFirst({ where: { id: addressId, supplierId } });
       if (!before) throw new NotFoundError('Address', addressId);
       await tx.supplierAddress.delete({ where: { id: addressId } });
-      await this.audit.log(tx, actor, { entityType: 'supplier', entityId: supplierId, action: 'address_removed', before, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'supplier',
+        entityId: supplierId,
+        action: 'address_removed',
+        before,
+        after: null,
+      });
     });
     return this.get(actor, supplierId);
   }
@@ -307,9 +373,13 @@ export class SuppliersService {
     await this.prisma.tx(async (tx) => {
       const b = await tx.supplierBankAccount.findFirst({ where: { id: accountId, supplierId } });
       if (!b) throw new NotFoundError('Bank account', accountId);
-      if (b.status !== 'PENDING_APPROVAL') throw new BusinessRuleError(`Bank account is ${b.status}, not pending approval`);
+      if (b.status !== 'PENDING_APPROVAL')
+        throw new BusinessRuleError(`Bank account is ${b.status}, not pending approval`);
       if (b.createdById === actor.userId) {
-        throw new BusinessRuleError('A different user must approve bank details you entered (four-eyes rule)', 'FOUR_EYES');
+        throw new BusinessRuleError(
+          'A different user must approve bank details you entered (four-eyes rule)',
+          'FOUR_EYES',
+        );
       }
       await tx.supplierBankAccount.update({
         where: { id: accountId },
@@ -333,13 +403,21 @@ export class SuppliersService {
     return this.get(actor, supplierId);
   }
 
-  async revokeBankAccount(actor: Actor, supplierId: string, accountId: string, reason: string): Promise<SupplierDto> {
+  async revokeBankAccount(
+    actor: Actor,
+    supplierId: string,
+    accountId: string,
+    reason: string,
+  ): Promise<SupplierDto> {
     await this.find(actor, supplierId);
     await this.prisma.tx(async (tx) => {
       const b = await tx.supplierBankAccount.findFirst({ where: { id: accountId, supplierId } });
       if (!b) throw new NotFoundError('Bank account', accountId);
       if (b.status === 'REVOKED') throw new BusinessRuleError('Bank account is already revoked');
-      await tx.supplierBankAccount.update({ where: { id: accountId }, data: { status: 'REVOKED', revokedAt: new Date() } });
+      await tx.supplierBankAccount.update({
+        where: { id: accountId },
+        data: { status: 'REVOKED', revokedAt: new Date() },
+      });
       await this.audit.log(tx, actor, {
         entityType: 'supplier_bank_account',
         entityId: accountId,

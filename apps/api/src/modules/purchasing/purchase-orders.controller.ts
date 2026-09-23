@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+} from '@nestjs/common';
 import {
   allocationSchema,
   listQuerySchema,
@@ -47,26 +60,37 @@ export class PurchaseOrdersController {
   ): Promise<Page<PurchaseOrderListItemDto> | void> {
     const result = await this.orders.list(actor, q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<PurchaseOrderListItemDto>(res, actor, 'purchase-orders', 'Purchase orders', [
-      { header: 'Number', value: (r) => r.number, width: 16 },
-      { header: 'Supplier', value: (r) => r.supplier.name, width: 32 },
-      { header: 'Country', value: (r) => r.supplierCountry, width: 8 },
-      { header: 'Supplier ref', value: (r) => r.supplierRef },
-      { header: 'PO date', value: (r) => r.poDate, numFmt: 'yyyy-mm-dd', width: 12 },
-      { header: 'Currency', value: (r) => r.currency, width: 9 },
-      { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
-      { header: 'Total (base)', value: (r) => r.grandTotalBase, numFmt: MONEY_FMT },
-      { header: 'Status', value: (r) => r.status },
-      { header: 'Ready date', value: (r) => r.expectedReadyDate, numFmt: 'yyyy-mm-dd', width: 12 },
-      { header: 'Delayed', value: (r) => (r.isDelayed ? 'Yes' : ''), width: 8 },
-      { header: 'Allocated %', value: (r) => r.allocatedPct, numFmt: '0.0' },
-      { header: 'Sales orders', value: (r) => r.salesOrders.map((s) => s.code).join(', '), width: 30 },
-    ], result.rows);
+    await sendExcel<PurchaseOrderListItemDto>(
+      res,
+      actor,
+      'purchase-orders',
+      'Purchase orders',
+      [
+        { header: 'Number', value: (r) => r.number, width: 16 },
+        { header: 'Supplier', value: (r) => r.supplier.name, width: 32 },
+        { header: 'Country', value: (r) => r.supplierCountry, width: 8 },
+        { header: 'Supplier ref', value: (r) => r.supplierRef },
+        { header: 'PO date', value: (r) => r.poDate, numFmt: 'yyyy-mm-dd', width: 12 },
+        { header: 'Currency', value: (r) => r.currency, width: 9 },
+        { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
+        { header: 'Total (base)', value: (r) => r.grandTotalBase, numFmt: MONEY_FMT },
+        { header: 'Status', value: (r) => r.status },
+        { header: 'Ready date', value: (r) => r.expectedReadyDate, numFmt: 'yyyy-mm-dd', width: 12 },
+        { header: 'Delayed', value: (r) => (r.isDelayed ? 'Yes' : ''), width: 8 },
+        { header: 'Allocated %', value: (r) => r.allocatedPct, numFmt: '0.0' },
+        { header: 'Sales orders', value: (r) => r.salesOrders.map((s) => s.code).join(', '), width: 30 },
+      ],
+      result.rows,
+    );
   }
 
   @Get('purchase-orders/open-supply')
   @RequirePermission('purchase_order.view')
-  openSupply(@CurrentActor() actor: Actor, @Query('variantId') variantId?: string, @Query('productId') productId?: string) {
+  openSupply(
+    @CurrentActor() actor: Actor,
+    @Query('variantId') variantId?: string,
+    @Query('productId') productId?: string,
+  ) {
     return this.orders.openSupply(actor, variantId, productId);
   }
 
@@ -78,7 +102,10 @@ export class PurchaseOrdersController {
 
   @Post('purchase-orders')
   @RequirePermission('purchase_order.manage')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(purchaseOrderSchema)) body: PurchaseOrderInput): Promise<PurchaseOrderDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(purchaseOrderSchema)) body: PurchaseOrderInput,
+  ): Promise<PurchaseOrderDto> {
     return this.orders.create(actor, body);
   }
 
@@ -130,7 +157,10 @@ export class PurchaseOrdersController {
 
   @Post('allocations')
   @RequirePermission('allocation.manage')
-  allocate(@CurrentActor() actor: Actor, @Body(new ZodPipe(allocationSchema)) body: AllocationInput): Promise<AllocationDto> {
+  allocate(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(allocationSchema)) body: AllocationInput,
+  ): Promise<AllocationDto> {
     return this.orders.allocate(actor, body);
   }
 

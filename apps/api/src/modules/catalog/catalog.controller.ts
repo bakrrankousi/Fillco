@@ -43,7 +43,10 @@ export class CatalogController {
 
   @Post('catalog/categories')
   @RequirePermission('catalog.manage')
-  createCategory(@CurrentActor() actor: Actor, @Body(new ZodPipe(categorySchema)) body: CategoryInput): Promise<CategoryDto[]> {
+  createCategory(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(categorySchema)) body: CategoryInput,
+  ): Promise<CategoryDto[]> {
     return this.catalog.saveCategory(actor, body);
   }
 
@@ -101,16 +104,23 @@ export class CatalogController {
   ): Promise<Page<ProductListItemDto> | void> {
     const result = await this.catalog.listProducts(q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<ProductListItemDto>(res, actor, 'products', 'Products', [
-      { header: 'Code', value: (r) => r.code, width: 16 },
-      { header: 'Name', value: (r) => r.name, width: 32 },
-      { header: 'Category', value: (r) => r.categoryPath, width: 36 },
-      { header: 'Sales unit', value: (r) => r.defaultSalesUom, width: 10 },
-      { header: 'HS code', value: (r) => r.hsCode, width: 12 },
-      { header: 'Origin', value: (r) => r.countryOfOrigin, width: 8 },
-      { header: 'Variants', value: (r) => r.variantCount, width: 10 },
-      { header: 'Active', value: (r) => (r.isActive ? 'Yes' : 'No'), width: 8 },
-    ], result.rows);
+    await sendExcel<ProductListItemDto>(
+      res,
+      actor,
+      'products',
+      'Products',
+      [
+        { header: 'Code', value: (r) => r.code, width: 16 },
+        { header: 'Name', value: (r) => r.name, width: 32 },
+        { header: 'Category', value: (r) => r.categoryPath, width: 36 },
+        { header: 'Sales unit', value: (r) => r.defaultSalesUom, width: 10 },
+        { header: 'HS code', value: (r) => r.hsCode, width: 12 },
+        { header: 'Origin', value: (r) => r.countryOfOrigin, width: 8 },
+        { header: 'Variants', value: (r) => r.variantCount, width: 10 },
+        { header: 'Active', value: (r) => (r.isActive ? 'Yes' : 'No'), width: 8 },
+      ],
+      result.rows,
+    );
   }
 
   @Get('products/:id')
@@ -121,7 +131,10 @@ export class CatalogController {
 
   @Post('products')
   @RequirePermission('product.manage')
-  createProduct(@CurrentActor() actor: Actor, @Body(new ZodPipe(productSchema)) body: ProductInput): Promise<ProductDto> {
+  createProduct(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(productSchema)) body: ProductInput,
+  ): Promise<ProductDto> {
     return this.catalog.createProduct(actor, body);
   }
 

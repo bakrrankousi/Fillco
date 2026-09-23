@@ -39,7 +39,11 @@ describe('request schemas', () => {
     expect(c.contacts).toEqual([]);
   });
   it('requires order lines with positive quantity', () => {
-    const base = { customerId: '0190d7a0-0000-7000-8000-000000000001', orderDate: '2026-09-23', currency: 'USD' };
+    const base = {
+      customerId: '0190d7a0-0000-7000-8000-000000000001',
+      orderDate: '2026-09-23',
+      currency: 'USD',
+    };
     expect(salesOrderSchema.safeParse({ ...base, lines: [] }).success).toBe(false);
     const bad = salesOrderSchema.safeParse({
       ...base,
@@ -49,8 +53,12 @@ describe('request schemas', () => {
   });
   it('rejects same-currency exchange rates', () => {
     expect(
-      exchangeRateSchema.safeParse({ rateDate: '2026-09-01', fromCurrency: 'USD', toCurrency: 'usd', rate: '1' })
-        .success,
+      exchangeRateSchema.safeParse({
+        rateDate: '2026-09-01',
+        fromCurrency: 'USD',
+        toCurrency: 'usd',
+        rate: '1',
+      }).success,
     ).toBe(false);
   });
   it('validates IBAN and requires an account identifier', () => {
@@ -61,7 +69,9 @@ describe('request schemas', () => {
       currency: 'USD',
     });
     expect(ok.iban).toBe('TR330006100519786457841326');
-    expect(bankAccountSchema.safeParse({ bankName: 'X', accountName: 'Y', currency: 'USD' }).success).toBe(false);
+    expect(bankAccountSchema.safeParse({ bankName: 'X', accountName: 'Y', currency: 'USD' }).success).toBe(
+      false,
+    );
   });
 });
 

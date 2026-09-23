@@ -82,7 +82,19 @@ export const PO_TRANSITIONS: Record<PurchaseOrderStatus, readonly PurchaseOrderS
 export const PO_MILESTONES = ['PRODUCTION_STARTED', 'PRODUCTION_DONE', 'INSPECTION', 'READY'] as const;
 export type PoMilestone = (typeof PO_MILESTONES)[number];
 
-export const INCOTERM_CODES = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'] as const;
+export const INCOTERM_CODES = [
+  'EXW',
+  'FCA',
+  'CPT',
+  'CIP',
+  'DAP',
+  'DPU',
+  'DDP',
+  'FAS',
+  'FOB',
+  'CFR',
+  'CIF',
+] as const;
 export type IncotermCode = (typeof INCOTERM_CODES)[number];
 
 export const ATTRIBUTE_DATA_TYPES = ['NUMBER', 'TEXT', 'BOOLEAN', 'ENUM'] as const;

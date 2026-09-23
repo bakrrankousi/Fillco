@@ -25,7 +25,10 @@ export class ProblemFilter implements ExceptionFilter {
     const req = host.switchToHttp().getRequest<Request>();
     const problem = this.toProblem(exception);
     if (problem.status >= 500) {
-      this.logger.error(`${req.method} ${req.originalUrl} → ${String(exception)}`, (exception as Error)?.stack);
+      this.logger.error(
+        `${req.method} ${req.originalUrl} → ${String(exception)}`,
+        (exception as Error)?.stack,
+      );
     }
     res.status(problem.status).type('application/problem+json').json(problem);
   }
@@ -42,7 +45,7 @@ export class ProblemFilter implements ExceptionFilter {
     if (e instanceof AppError) {
       return make(e.status, e.message, e.code, { data: e.data, errors: e.fieldErrors });
     }
-    if (e instanceof ZodError) {
+    if (isZodError(e)) {
       return make(400, 'Some fields are invalid', 'VALIDATION', { errors: zodToFieldErrors(e) });
     }
     if (e instanceof MissingExchangeRateError) {
@@ -56,7 +59,11 @@ export class ProblemFilter implements ExceptionFilter {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       switch (e.code) {
         case 'P2002':
-          return make(409, `A record with this ${String((e.meta?.target as string[] | undefined)?.join(', ') ?? 'value')} already exists`, 'DUPLICATE');
+          return make(
+            409,
+            `A record with this ${String((e.meta?.target as string[] | undefined)?.join(', ') ?? 'value')} already exists`,
+            'DUPLICATE',
+          );
         case 'P2025':
           return make(404, 'Record not found', 'NOT_FOUND');
         case 'P2003':
@@ -83,7 +90,18 @@ export class ProblemFilter implements ExceptionFilter {
   }
 }
 
+/** Duck-typed so it also works when zod is loaded twice (ESM + CJS copies). */
+function isZodError(e: unknown): e is ZodError {
+  return (
+    e instanceof ZodError ||
+    (e instanceof Error && e.name === 'ZodError' && Array.isArray((e as ZodError).issues))
+  );
+}
+
 function cleanPgMessage(msg: string): string {
-  const m = /(?:ERROR:|message: ")?\s*((?:Only draft|Sales order line|Purchase order line|UPDATE on|DELETE on)[^"\n]*)/.exec(msg);
+  const m =
+    /(?:ERROR:|message: ")?\s*((?:Only draft|Sales order line|Purchase order line|UPDATE on|DELETE on)[^"\n]*)/.exec(
+      msg,
+    );
   return m?.[1]?.trim() ?? 'The change conflicts with existing data';
 }

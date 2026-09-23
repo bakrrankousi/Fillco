@@ -87,7 +87,12 @@ export function computeDocumentTotals(
   const taxTotal = sum(computed.map((c) => c.tax));
   const discountTotal = sum(computed.map((c) => c.discount)).plus(headerDiscount);
   if (headerDiscount.greaterThan(subtotal)) throw new RangeError('Header discount exceeds subtotal');
-  const grandTotal = subtotal.minus(headerDiscount).plus(freight).plus(insurance).plus(otherCharges).plus(taxTotal);
+  const grandTotal = subtotal
+    .minus(headerDiscount)
+    .plus(freight)
+    .plus(insurance)
+    .plus(otherCharges)
+    .plus(taxTotal);
   return {
     grossTotal,
     discountTotal,

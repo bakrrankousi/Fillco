@@ -3,8 +3,8 @@ packages:
   - packages/*
   - e2e
 onlyBuiltDependencies:
-  - "@prisma/client"
-  - "@prisma/engines"
-  - "@swc/core"
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
   - esbuild
   - prisma

@@ -31,12 +31,23 @@ describe('customer credit exposure', () => {
     expect(r.excess.toFixed(2)).toBe('5000.00');
   });
   it('counts open orders and deducts unapplied advances', () => {
-    const r = evaluateCredit({ ...base, openOrders: '25000', unappliedCredit: '10000', newOrderValue: '20000' });
+    const r = evaluateCredit({
+      ...base,
+      openOrders: '25000',
+      unappliedCredit: '10000',
+      newOrderValue: '20000',
+    });
     expect(r.exposure.toFixed(2)).toBe('75000.00');
     expect(r.availableAfter.toFixed(2)).toBe('5000.00');
   });
   it('does not consume credit for the part paid in advance', () => {
-    const r = evaluateCredit({ ...base, creditLimit: '0', openAr: '0', newOrderValue: '50000', securedPct: 100 });
+    const r = evaluateCredit({
+      ...base,
+      creditLimit: '0',
+      openAr: '0',
+      newOrderValue: '50000',
+      securedPct: 100,
+    });
     expect(r.result).toBe('PASS');
     const partial = evaluateCredit({ ...base, newOrderValue: '50000', securedPct: 30 });
     expect(partial.newOrderUnsecured.toFixed(2)).toBe('35000.00');
@@ -79,21 +90,34 @@ describe('partial quantities', () => {
     expect(p.remainingToShip.toString()).toBe('4000');
   });
   it('closed-short lines have nothing remaining', () => {
-    const p = soLineProgress({ ordered: 100, purchasedCommitted: 60, purchasedPending: 0, lineStatus: 'CLOSED_SHORT' });
+    const p = soLineProgress({
+      ordered: 100,
+      purchasedCommitted: 60,
+      purchasedPending: 0,
+      lineStatus: 'CLOSED_SHORT',
+    });
     expect(p.remainingToPurchase.toString()).toBe('0');
     expect(p.fullyPurchased).toBe(true);
   });
 });
 
 describe('allocation caps', () => {
-  const c = { soLineOrdered: '100000', soLineTolerancePct: '5', soLineAllocated: '60000', poLineQty: '50000', poLineAllocated: '0' };
+  const c = {
+    soLineOrdered: '100000',
+    soLineTolerancePct: '5',
+    soLineAllocated: '60000',
+    poLineQty: '50000',
+    poLineAllocated: '0',
+  };
   it('allows up to ordered + tolerance and PO availability', () => {
     expect(maxAllocatable(c).toString()).toBe('45000');
     expect(() => assertAllocation({ ...c, qty: '45000' })).not.toThrow();
   });
   it('rejects over-allocation on either side', () => {
     expect(() => assertAllocation({ ...c, qty: '45001' })).toThrow(AllocationError);
-    expect(() => assertAllocation({ ...c, poLineAllocated: '10000', qty: '40001' })).toThrow(/Purchase order line/);
+    expect(() => assertAllocation({ ...c, poLineAllocated: '10000', qty: '40001' })).toThrow(
+      /Purchase order line/,
+    );
     expect(() => assertAllocation({ ...c, qty: '0' })).toThrow(AllocationError);
   });
 });
@@ -113,13 +137,17 @@ describe('derived sales order status', () => {
   });
   it('walks through purchasing stages', () => {
     expect(deriveSalesOrderStatus('CONFIRMED', [line()]).display).toBe('PURCHASE_REQUIRED');
-    expect(deriveSalesOrderStatus('CONFIRMED', [line({ purchasedPending: '50000' })]).display).toBe('PURCHASING');
+    expect(deriveSalesOrderStatus('CONFIRMED', [line({ purchasedPending: '50000' })]).display).toBe(
+      'PURCHASING',
+    );
     const partial = deriveSalesOrderStatus('CONFIRMED', [line({ purchasedCommitted: '50000' }), line()]);
     expect(partial.display).toBe('PARTIALLY_PURCHASED');
     expect(partial.purchasedPct.toString()).toBe('50');
     expect(
-      deriveSalesOrderStatus('CONFIRMED', [line({ purchasedCommitted: '50000' }), line({ purchasedCommitted: '50000' })])
-        .display,
+      deriveSalesOrderStatus('CONFIRMED', [
+        line({ purchasedCommitted: '50000' }),
+        line({ purchasedCommitted: '50000' }),
+      ]).display,
     ).toBe('FULLY_PURCHASED');
   });
   it('shipping stages take precedence over purchasing', () => {
@@ -127,11 +155,15 @@ describe('derived sales order status', () => {
     expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipmentInPreparation: true }]).display).toBe(
       'PREPARING_SHIPMENT',
     );
-    expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '20000' }]).display).toBe('PARTIALLY_SHIPPED');
-    expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '50000' }]).display).toBe('FULLY_SHIPPED');
-    expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '50000', delivered: '50000' }]).display).toBe(
-      'DELIVERED',
+    expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '20000' }]).display).toBe(
+      'PARTIALLY_SHIPPED',
     );
+    expect(deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '50000' }]).display).toBe(
+      'FULLY_SHIPPED',
+    );
+    expect(
+      deriveSalesOrderStatus('CONFIRMED', [{ ...full, shipped: '50000', delivered: '50000' }]).display,
+    ).toBe('DELIVERED');
   });
   it('ignores cancelled lines', () => {
     const s = deriveSalesOrderStatus('CONFIRMED', [

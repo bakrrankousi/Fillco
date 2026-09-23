@@ -31,7 +31,12 @@ export class CreditService {
     private readonly company: CompanyService,
   ) {}
 
-  async exposure(companyId: string, customerId: string, tx: Tx = this.prisma, excludeOrderId?: string): Promise<ExposureFigures> {
+  async exposure(
+    companyId: string,
+    customerId: string,
+    tx: Tx = this.prisma,
+    excludeOrderId?: string,
+  ): Promise<ExposureFigures> {
     const company = await this.company.get(companyId, tx);
     const today = this.company.today(company);
     const customer = await tx.customer.findUniqueOrThrow({ where: { id: customerId } });
@@ -57,7 +62,9 @@ export class CreditService {
       ),
     );
     const baseToLimit =
-      limitCurrency === company.baseCurrency ? new Decimal(1) : await this.fx.rate(company.baseCurrency, limitCurrency, today, tx);
+      limitCurrency === company.baseCurrency
+        ? new Decimal(1)
+        : await this.fx.rate(company.baseCurrency, limitCurrency, today, tx);
     const openOrders = roundMoney(openOrdersBase.times(baseToLimit), limitMinor);
 
     const openAr = new Decimal(0);

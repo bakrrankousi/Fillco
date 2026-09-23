@@ -56,18 +56,28 @@ export class SettingsController {
 
   @Post('currencies')
   @RequirePermission('master_data.manage')
-  saveCurrency(@CurrentActor() actor: Actor, @Body(new ZodPipe(currencySchema)) body: CurrencyInput): Promise<CurrencyDto> {
+  saveCurrency(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(currencySchema)) body: CurrencyInput,
+  ): Promise<CurrencyDto> {
     return this.settings.upsertCurrency(actor, body);
   }
 
   @Get('exchange-rates')
-  exchangeRates(@Query('currency') currency?: string, @Query('from') from?: string, @Query('to') to?: string): Promise<ExchangeRateDto[]> {
+  exchangeRates(
+    @Query('currency') currency?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<ExchangeRateDto[]> {
     return this.settings.exchangeRates({ currency: currency?.toUpperCase(), from, to });
   }
 
   @Post('exchange-rates')
   @RequirePermission('exchange_rate.manage')
-  saveRate(@CurrentActor() actor: Actor, @Body(new ZodPipe(exchangeRateSchema)) body: ExchangeRateInput): Promise<ExchangeRateDto> {
+  saveRate(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(exchangeRateSchema)) body: ExchangeRateInput,
+  ): Promise<ExchangeRateDto> {
     return this.settings.saveExchangeRate(actor, body);
   }
 
@@ -99,7 +109,10 @@ export class SettingsController {
 
   @Post('payment-terms')
   @RequirePermission('master_data.manage')
-  createTerm(@CurrentActor() actor: Actor, @Body(new ZodPipe(paymentTermSchema)) body: PaymentTermInput): Promise<PaymentTermDto> {
+  createTerm(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(paymentTermSchema)) body: PaymentTermInput,
+  ): Promise<PaymentTermDto> {
     return this.settings.savePaymentTerm(actor, body);
   }
 

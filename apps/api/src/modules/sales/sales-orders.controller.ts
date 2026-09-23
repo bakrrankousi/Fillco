@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Res,
+} from '@nestjs/common';
 import {
   closeLineSchema,
   confirmSalesOrderSchema,
@@ -30,7 +42,10 @@ const query = listQuerySchema.extend({
   from: z.string().optional(),
   to: z.string().optional(),
 });
-const awaitingQuery = listQuerySchema.extend({ customerId: z.string().uuid().optional(), productId: z.string().uuid().optional() });
+const awaitingQuery = listQuerySchema.extend({
+  customerId: z.string().uuid().optional(),
+  productId: z.string().uuid().optional(),
+});
 const versionOnly = z.object({ version: z.number().int().nonnegative() });
 const versionReason = z.object({ version: z.number().int().nonnegative(), reason: requiredText(1000) });
 
@@ -47,20 +62,32 @@ export class SalesOrdersController {
   ): Promise<Page<SalesOrderListItemDto> | void> {
     const result = await this.orders.list(actor, q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<SalesOrderListItemDto>(res, actor, 'sales-orders', 'Sales orders', [
-      { header: 'Number', value: (r) => r.number, width: 16 },
-      { header: 'Customer', value: (r) => r.customer.name, width: 32 },
-      { header: 'Country', value: (r) => r.customerCountry, width: 8 },
-      { header: 'Customer PO', value: (r) => r.customerPoRef },
-      { header: 'Order date', value: (r) => r.orderDate, numFmt: 'yyyy-mm-dd', width: 12 },
-      { header: 'Currency', value: (r) => r.currency, width: 9 },
-      { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
-      { header: 'Total (base)', value: (r) => r.grandTotalBase, numFmt: MONEY_FMT },
-      { header: 'Status', value: (r) => SO_DISPLAY_STATUS_LABELS[r.displayStatus], width: 26 },
-      { header: 'Purchased %', value: (r) => r.purchasedPct, numFmt: '0.0' },
-      { header: 'Requested shipment', value: (r) => r.requestedShipmentDate, numFmt: 'yyyy-mm-dd', width: 14 },
-      { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
-    ], result.rows);
+    await sendExcel<SalesOrderListItemDto>(
+      res,
+      actor,
+      'sales-orders',
+      'Sales orders',
+      [
+        { header: 'Number', value: (r) => r.number, width: 16 },
+        { header: 'Customer', value: (r) => r.customer.name, width: 32 },
+        { header: 'Country', value: (r) => r.customerCountry, width: 8 },
+        { header: 'Customer PO', value: (r) => r.customerPoRef },
+        { header: 'Order date', value: (r) => r.orderDate, numFmt: 'yyyy-mm-dd', width: 12 },
+        { header: 'Currency', value: (r) => r.currency, width: 9 },
+        { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
+        { header: 'Total (base)', value: (r) => r.grandTotalBase, numFmt: MONEY_FMT },
+        { header: 'Status', value: (r) => SO_DISPLAY_STATUS_LABELS[r.displayStatus], width: 26 },
+        { header: 'Purchased %', value: (r) => r.purchasedPct, numFmt: '0.0' },
+        {
+          header: 'Requested shipment',
+          value: (r) => r.requestedShipmentDate,
+          numFmt: 'yyyy-mm-dd',
+          width: 14,
+        },
+        { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
+      ],
+      result.rows,
+    );
   }
 
   @Get('awaiting-purchase')
@@ -72,17 +99,29 @@ export class SalesOrdersController {
   ): Promise<AwaitingPurchaseItemDto[] | void> {
     const rows = await this.orders.awaitingPurchase(actor, q);
     if (q.format !== 'xlsx') return rows;
-    await sendExcel<AwaitingPurchaseItemDto>(res, actor, 'awaiting-purchase', 'Awaiting purchase', [
-      { header: 'Sales order', value: (r) => r.salesOrder.code, width: 16 },
-      { header: 'Customer', value: (r) => r.customer.name, width: 30 },
-      { header: 'Line', value: (r) => r.lineNo, width: 6 },
-      { header: 'Product', value: (r) => r.description, width: 40 },
-      { header: 'Ordered (kg)', value: (r) => r.orderedQtyBase, numFmt: QTY_FMT },
-      { header: 'Purchased (kg)', value: (r) => r.purchasedQtyBase, numFmt: QTY_FMT },
-      { header: 'Remaining (kg)', value: (r) => r.remainingQtyBase, numFmt: QTY_FMT },
-      { header: 'Days since confirmation', value: (r) => r.daysSinceConfirmation },
-      { header: 'Requested shipment', value: (r) => r.requestedShipmentDate, numFmt: 'yyyy-mm-dd', width: 14 },
-    ], rows);
+    await sendExcel<AwaitingPurchaseItemDto>(
+      res,
+      actor,
+      'awaiting-purchase',
+      'Awaiting purchase',
+      [
+        { header: 'Sales order', value: (r) => r.salesOrder.code, width: 16 },
+        { header: 'Customer', value: (r) => r.customer.name, width: 30 },
+        { header: 'Line', value: (r) => r.lineNo, width: 6 },
+        { header: 'Product', value: (r) => r.description, width: 40 },
+        { header: 'Ordered (kg)', value: (r) => r.orderedQtyBase, numFmt: QTY_FMT },
+        { header: 'Purchased (kg)', value: (r) => r.purchasedQtyBase, numFmt: QTY_FMT },
+        { header: 'Remaining (kg)', value: (r) => r.remainingQtyBase, numFmt: QTY_FMT },
+        { header: 'Days since confirmation', value: (r) => r.daysSinceConfirmation },
+        {
+          header: 'Requested shipment',
+          value: (r) => r.requestedShipmentDate,
+          numFmt: 'yyyy-mm-dd',
+          width: 14,
+        },
+      ],
+      rows,
+    );
   }
 
   @Get(':id')
@@ -93,13 +132,19 @@ export class SalesOrdersController {
 
   @Get(':id/credit-check')
   @RequirePermission('sales_order.view')
-  creditPreview(@CurrentActor() actor: Actor, @Param('id', ParseUUIDPipe) id: string): Promise<CreditPreviewDto> {
+  creditPreview(
+    @CurrentActor() actor: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<CreditPreviewDto> {
     return this.orders.creditPreview(actor, id);
   }
 
   @Post()
   @RequirePermission('sales_order.manage')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(salesOrderSchema)) body: SalesOrderInput): Promise<SalesOrderDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(salesOrderSchema)) body: SalesOrderInput,
+  ): Promise<SalesOrderDto> {
     return this.orders.create(actor, body);
   }
 

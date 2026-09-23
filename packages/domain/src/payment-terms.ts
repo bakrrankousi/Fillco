@@ -67,13 +67,19 @@ export function validateInstallmentRules(rules: readonly InstallmentRule[]): voi
     if (p.decimalPlaces() > 4)
       throw new InvalidPaymentTermError(`Installment ${i + 1}: percent allows at most 4 decimals`);
     if (!Number.isInteger(r.offsetDays) || r.offsetDays < -365 || r.offsetDays > 730)
-      throw new InvalidPaymentTermError(`Installment ${i + 1}: offset days must be a whole number (-365…730)`);
+      throw new InvalidPaymentTermError(
+        `Installment ${i + 1}: offset days must be a whole number (-365…730)`,
+      );
     if (!TRIGGER_EVENTS.includes(r.triggerEvent))
-      throw new InvalidPaymentTermError(`Installment ${i + 1}: unknown trigger event ${String(r.triggerEvent)}`);
+      throw new InvalidPaymentTermError(
+        `Installment ${i + 1}: unknown trigger event ${String(r.triggerEvent)}`,
+      );
   }
   const total = sum(rules.map((r) => r.percent));
   if (!total.eq(100))
-    throw new InvalidPaymentTermError(`Installment percentages must add up to 100 (currently ${total.toString()})`);
+    throw new InvalidPaymentTermError(
+      `Installment percentages must add up to 100 (currently ${total.toString()})`,
+    );
 }
 
 export interface ScheduleOptions {

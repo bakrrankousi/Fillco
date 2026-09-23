@@ -14,7 +14,17 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
-  imports: [CommonModule, AuthModule, UsersModule, SettingsModule, PartiesModule, CatalogModule, SalesModule, PurchasingModule, InsightsModule],
+  imports: [
+    CommonModule,
+    AuthModule,
+    UsersModule,
+    SettingsModule,
+    PartiesModule,
+    CatalogModule,
+    SalesModule,
+    PurchasingModule,
+    InsightsModule,
+  ],
   controllers: [HealthController],
   providers: [
     { provide: APP_GUARD, useClass: SessionGuard },

@@ -511,7 +511,13 @@ export interface QuotationDto {
   discountTotal: DecimalString;
   grandTotal: DecimalString;
   lines: QuotationLineDto[];
-  revisions: { id: string; revision: number; status: QuotationStatus; quotationDate: DateString; grandTotal: DecimalString }[];
+  revisions: {
+    id: string;
+    revision: number;
+    status: QuotationStatus;
+    quotationDate: DateString;
+    grandTotal: DecimalString;
+  }[];
   salesOrders: Ref[];
   sentAt: Timestamp | null;
   decidedAt: Timestamp | null;
@@ -646,7 +652,11 @@ export interface SalesOrderDto {
   paymentSchedule: ScheduleItemDto[];
   creditChecks: CreditCheckDto[];
   finance: OrderFinanceSummaryDto;
-  purchaseOrders: (Ref & { supplier: Ref; status: PurchaseOrderStatus; expectedReadyDate: DateString | null })[];
+  purchaseOrders: (Ref & {
+    supplier: Ref;
+    status: PurchaseOrderStatus;
+    expectedReadyDate: DateString | null;
+  })[];
   timeline: ActivityEventDto[];
   createdAt: Timestamp;
   version: number;

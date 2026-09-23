@@ -69,7 +69,10 @@ const include = {
     orderBy: { lineNo: 'asc' },
   },
   paymentSchedule: { orderBy: { seq: 'asc' } },
-  creditChecks: { include: { override: { include: { approvedBy: true } } }, orderBy: { evaluatedAt: 'desc' } },
+  creditChecks: {
+    include: { override: { include: { approvedBy: true } } },
+    orderBy: { evaluatedAt: 'desc' },
+  },
 } satisfies Prisma.SalesOrderInclude;
 type SalesOrderRow = Prisma.SalesOrderGetPayload<{ include: typeof include }>;
 
@@ -144,14 +147,19 @@ export class SalesOrdersService {
       qtyBase: a.qtyBase.toFixed(),
       isSubstitute: a.isSubstitute,
       substituteNote: a.substituteNote,
-      unitCostBase: canSeeCosts(actor) && !pl.qtyBase.isZero() ? pl.lineTotal.div(pl.qtyBase).toDecimalPlaces(6).toFixed() : null,
+      unitCostBase:
+        canSeeCosts(actor) && !pl.qtyBase.isZero()
+          ? pl.lineTotal.div(pl.qtyBase).toDecimalPlaces(6).toFixed()
+          : null,
       poCurrency: po.currency,
       createdAt: tsReq(a.createdAt),
     };
   }
 
   private async timeline(so: SalesOrderRow): Promise<ActivityEventDto[]> {
-    const poIds = [...new Set(so.lines.flatMap((l) => l.allocations.map((a) => a.purchaseOrderLine.purchaseOrderId)))];
+    const poIds = [
+      ...new Set(so.lines.flatMap((l) => l.allocations.map((a) => a.purchaseOrderLine.purchaseOrderId))),
+    ];
     const events = await this.prisma.activityEvent.findMany({
       where: {
         OR: [
@@ -164,7 +172,11 @@ export class SalesOrdersService {
       take: 200,
     });
     const users = new Map(
-      (await this.prisma.user.findMany({ where: { id: { in: events.map((e) => e.userId).filter((x): x is string => !!x) } } })).map((u) => [u.id, u]),
+      (
+        await this.prisma.user.findMany({
+          where: { id: { in: events.map((e) => e.userId).filter((x): x is string => !!x) } },
+        })
+      ).map((u) => [u.id, u]),
     );
     return events.map((e) => ({
       id: e.id,
@@ -177,7 +189,10 @@ export class SalesOrdersService {
     }));
   }
 
-  private creditCheckDto(c: SalesOrderRow['creditChecks'][number], users: Map<string, { id: string; fullName: string }>): CreditCheckDto {
+  private creditCheckDto(
+    c: SalesOrderRow['creditChecks'][number],
+    users: Map<string, { id: string; fullName: string }>,
+  ): CreditCheckDto {
     return {
       id: c.id,
       evaluatedAt: tsReq(c.evaluatedAt),
@@ -196,7 +211,11 @@ export class SalesOrdersService {
       result: c.result,
       reasons: c.reasons as string[],
       override: c.override
-        ? { approvedBy: refReq(c.override.approvedBy), approvedAt: tsReq(c.override.approvedAt), reason: c.override.reason }
+        ? {
+            approvedBy: refReq(c.override.approvedBy),
+            approvedAt: tsReq(c.override.approvedAt),
+            reason: c.override.reason,
+          }
         : null,
     };
   }
@@ -205,7 +224,9 @@ export class SalesOrdersService {
     const company = await this.company.get(actor.companyId);
     const packaging = await DocumentLinesService.packagingMap(this.prisma);
     const portIds = [so.loadingPortId, so.destinationPortId].filter((x): x is string => !!x);
-    const ports = new Map((await this.prisma.port.findMany({ where: { id: { in: portIds } } })).map((p) => [p.id, p]));
+    const ports = new Map(
+      (await this.prisma.port.findMany({ where: { id: { in: portIds } } })).map((p) => [p.id, p]),
+    );
     const fulfillment = (await loadFulfillment(this.prisma, [so.id])).get(so.id) ?? [];
     const derived = deriveSalesOrderStatus(so.status, fulfillment);
     const byLine = new Map(fulfillment.map((f) => [f.salesOrderLineId, soLineProgress(f)]));
@@ -239,12 +260,18 @@ export class SalesOrdersService {
         const qty = dec(a.qtyBase.toFixed());
         purchasedSalesBase = purchasedSalesBase.plus(qty.times(salesPerKg).times(so.fxRate.toFixed()));
         purchaseCostBase = purchaseCostBase.plus(
-          qty.times(dec(pl.lineTotal.toFixed()).div(pl.qtyBase.toFixed())).times(pl.purchaseOrder.fxRate.toFixed()),
+          qty
+            .times(dec(pl.lineTotal.toFixed()).div(pl.qtyBase.toFixed()))
+            .times(pl.purchaseOrder.fxRate.toFixed()),
         );
       }
     }
     const profit = roundMoney(purchasedSalesBase.minus(purchaseCostBase), company.baseMinorUnits);
-    const salesValueBase = toBase(sum(so.lines.filter((l) => l.lineStatus !== 'CANCELLED').map((l) => l.lineTotal.toFixed())), so.fxRate.toFixed(), company.baseMinorUnits);
+    const salesValueBase = toBase(
+      sum(so.lines.filter((l) => l.lineStatus !== 'CANCELLED').map((l) => l.lineTotal.toFixed())),
+      so.fxRate.toFixed(),
+      company.baseMinorUnits,
+    );
 
     const purchaseOrders = new Map<string, SalesOrderDto['purchaseOrders'][number]>();
     for (const l of so.lines)
@@ -261,14 +288,22 @@ export class SalesOrdersService {
       }
 
     const userIds = so.creditChecks.map((c) => c.evaluatedById).filter((x): x is string => !!x);
-    const users = new Map((await this.prisma.user.findMany({ where: { id: { in: userIds } } })).map((u) => [u.id, u]));
+    const users = new Map(
+      (await this.prisma.user.findMany({ where: { id: { in: userIds } } })).map((u) => [u.id, u]),
+    );
 
     return {
       id: so.id,
       number: so.number,
       customer: refReq(so.customer),
       customerStatus: so.customer.status,
-      quotation: so.quotation ? { id: so.quotation.id, code: so.quotation.number, name: `${so.quotation.number} rev ${so.quotation.revision}` } : null,
+      quotation: so.quotation
+        ? {
+            id: so.quotation.id,
+            code: so.quotation.number,
+            name: `${so.quotation.number} rev ${so.quotation.revision}`,
+          }
+        : null,
       customerPoRef: so.customerPoRef,
       orderDate: dayReq(so.orderDate),
       salesperson: ref(so.salesperson),
@@ -319,7 +354,9 @@ export class SalesOrdersService {
         purchaseCostBase: showCost ? roundMoney(purchaseCostBase, company.baseMinorUnits).toFixed() : null,
         estimatedGrossProfitBase: showCost ? profit.toFixed() : null,
         estimatedMarginPct:
-          showCost && !purchasedSalesBase.isZero() ? profit.div(purchasedSalesBase).times(100).toDecimalPlaces(1).toFixed() : null,
+          showCost && !purchasedSalesBase.isZero()
+            ? profit.div(purchasedSalesBase).times(100).toDecimalPlaces(1).toFixed()
+            : null,
         costCoveragePct: derived.purchasedPct.toFixed(),
       },
       purchaseOrders: [...purchaseOrders.values()],
@@ -329,17 +366,23 @@ export class SalesOrdersService {
     };
   }
 
-  async list(actor: Actor, q: SalesOrderFilter): Promise<{ page: Page<SalesOrderListItemDto>; rows: SalesOrderListItemDto[] }> {
+  async list(
+    actor: Actor,
+    q: SalesOrderFilter,
+  ): Promise<{ page: Page<SalesOrderListItemDto>; rows: SalesOrderListItemDto[] }> {
     const where: Prisma.SalesOrderWhereInput = {
       companyId: actor.companyId,
       ...viaCustomerScope(actor),
-      ...(q.status
-        ? { status: { in: q.status.split(',') as Prisma.EnumSalesOrderStatusFilter['in'] } }
-        : {}),
+      ...(q.status ? { status: { in: q.status.split(',') as Prisma.EnumSalesOrderStatusFilter['in'] } } : {}),
       ...(q.customerId ? { customerId: q.customerId } : {}),
       ...(q.salespersonId ? { salespersonId: q.salespersonId } : {}),
       ...(q.from || q.to
-        ? { orderDate: { ...(q.from ? { gte: isoToDate(q.from) } : {}), ...(q.to ? { lte: isoToDate(q.to) } : {}) } }
+        ? {
+            orderDate: {
+              ...(q.from ? { gte: isoToDate(q.from) } : {}),
+              ...(q.to ? { lte: isoToDate(q.to) } : {}),
+            },
+          }
         : {}),
       ...(q.q
         ? {
@@ -372,7 +415,10 @@ export class SalesOrdersService {
       }),
       this.prisma.salesOrder.count({ where }),
     ]);
-    const progress = await loadFulfillment(this.prisma, rows.map((r) => r.id));
+    const progress = await loadFulfillment(
+      this.prisma,
+      rows.map((r) => r.id),
+    );
     const items: SalesOrderListItemDto[] = rows.map((r) => {
       const derived = deriveSalesOrderStatus(r.status, progress.get(r.id) ?? []);
       return {
@@ -398,7 +444,10 @@ export class SalesOrdersService {
   }
 
   async find(actor: Actor, id: string, tx: Tx = this.prisma): Promise<SalesOrderRow> {
-    const so = await tx.salesOrder.findFirst({ where: { id, companyId: actor.companyId, ...viaCustomerScope(actor) }, include });
+    const so = await tx.salesOrder.findFirst({
+      where: { id, companyId: actor.companyId, ...viaCustomerScope(actor) },
+      include,
+    });
     if (!so) throw new NotFoundError('Sales order', id);
     return so;
   }
@@ -411,7 +460,8 @@ export class SalesOrdersService {
 
   private async header(tx: Tx, actor: Actor, input: SalesOrderInput) {
     const customer = await this.customers.findVisible(actor, input.customerId, tx);
-    if (customer.status === 'INACTIVE') throw new BusinessRuleError('This customer is archived. Reactivate it first.');
+    if (customer.status === 'INACTIVE')
+      throw new BusinessRuleError('This customer is archived. Reactivate it first.');
     for (const addressId of [input.shippingAddressId, input.billingAddressId]) {
       if (addressId && !customer.addresses.some((a) => a.id === addressId)) {
         throw new BusinessRuleError('Address does not belong to this customer');
@@ -481,7 +531,12 @@ export class SalesOrdersService {
         },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: created.id, action: 'create', after: created });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: created.id,
+        action: 'create',
+        after: created,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'sales_order.created',
         entityType: 'sales_order',
@@ -550,7 +605,12 @@ export class SalesOrdersService {
         },
       },
     });
-    await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: so.id, action: 'create', details: { fromQuotation: q.number, revision: q.revision } });
+    await this.audit.log(tx, actor, {
+      entityType: 'sales_order',
+      entityId: so.id,
+      action: 'create',
+      details: { fromQuotation: q.number, revision: q.revision },
+    });
     await this.audit.activity(tx, actor, {
       eventType: 'sales_order.created',
       entityType: 'sales_order',
@@ -567,7 +627,10 @@ export class SalesOrdersService {
       const current = await this.find(actor, id, tx);
       assertVersion('Sales order', current.version, input.version);
       if (!EDITABLE.has(current.status)) {
-        throw new BusinessRuleError('Only draft or unconfirmed orders can be edited. Reopen the order first.', 'NOT_EDITABLE');
+        throw new BusinessRuleError(
+          'Only draft or unconfirmed orders can be edited. Reopen the order first.',
+          'NOT_EDITABLE',
+        );
       }
       const { company, data, fxRate } = await this.header(tx, actor, input);
       const doc = await this.lines.prepare(tx, input.currency, input.lines);
@@ -599,7 +662,14 @@ export class SalesOrdersService {
   }
 
   async submit(actor: Actor, id: string, version: number): Promise<SalesOrderDto> {
-    return this.simpleTransition(actor, id, version, ['DRAFT'], 'PENDING_CONFIRMATION', 'sent for customer confirmation');
+    return this.simpleTransition(
+      actor,
+      id,
+      version,
+      ['DRAFT'],
+      'PENDING_CONFIRMATION',
+      'sent for customer confirmation',
+    );
   }
 
   private async simpleTransition(
@@ -614,13 +684,21 @@ export class SalesOrdersService {
     const so = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
       assertVersion('Sales order', current.version, version);
-      if (!from.includes(current.status)) throw new BusinessRuleError(`Order is ${current.status}; cannot change to ${to}`);
+      if (!from.includes(current.status))
+        throw new BusinessRuleError(`Order is ${current.status}; cannot change to ${to}`);
       const updated = await tx.salesOrder.update({
         where: { id },
         data: { status: to, updatedById: actor.userId, version: { increment: 1 } },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: id, action: 'status', before: { status: current.status }, after: { status: to }, reason });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: id,
+        action: 'status',
+        before: { status: current.status },
+        after: { status: to },
+        reason,
+      });
       await this.audit.activity(tx, actor, {
         eventType: `sales_order.${to.toLowerCase()}`,
         entityType: 'sales_order',
@@ -711,12 +789,18 @@ export class SalesOrdersService {
   async confirm(actor: Actor, id: string, input: ConfirmSalesOrderInput): Promise<SalesOrderDto> {
     const failed = await this.prisma.tx(async (tx) => {
       // Lock the customer row so two orders for the same customer are credit-checked one at a time.
-      const target = await tx.salesOrder.findFirst({ where: { id, companyId: actor.companyId }, select: { customerId: true } });
-      if (target) await tx.$queryRaw`SELECT id FROM customers WHERE id = ${target.customerId}::uuid FOR UPDATE`;
+      const target = await tx.salesOrder.findFirst({
+        where: { id, companyId: actor.companyId },
+        select: { customerId: true },
+      });
+      if (target)
+        await tx.$queryRaw`SELECT id FROM customers WHERE id = ${target.customerId}::uuid FOR UPDATE`;
       const so = await this.find(actor, id, tx);
       assertVersion('Sales order', so.version, input.version);
-      if (!EDITABLE.has(so.status)) throw new BusinessRuleError(`Order is ${so.status} and cannot be confirmed`);
-      if (so.lines.filter((l) => l.lineStatus !== 'CANCELLED').length === 0) throw new BusinessRuleError('The order has no lines');
+      if (!EDITABLE.has(so.status))
+        throw new BusinessRuleError(`Order is ${so.status} and cannot be confirmed`);
+      if (so.lines.filter((l) => l.lineStatus !== 'CANCELLED').length === 0)
+        throw new BusinessRuleError('The order has no lines');
       if (so.customer.status === 'INACTIVE') throw new BusinessRuleError('The customer is archived');
 
       const company = await this.company.get(actor.companyId, tx);
@@ -724,13 +808,18 @@ export class SalesOrdersService {
       // Re-freeze the rate on the order date (rates may have been corrected since the draft was saved).
       const fxRate = await this.fx.rate(so.currency, company.baseCurrency, dayReq(so.orderDate), tx);
       const grandTotalBase = toBase(so.grandTotal.toFixed(), fxRate, company.baseMinorUnits);
-      await tx.salesOrder.update({ where: { id }, data: { fxRate: fxRate.toFixed(), grandTotalBase: grandTotalBase.toFixed() } });
+      await tx.salesOrder.update({
+        where: { id },
+        data: { fxRate: fxRate.toFixed(), grandTotalBase: grandTotalBase.toFixed() },
+      });
       const fresh = await this.find(actor, id, tx);
 
       const evaluation = await this.evaluate(tx, actor, fresh);
       // Credit controllers without sales_order.confirm may only confirm as an override of a failed check.
       if (!can(actor, 'sales_order.confirm') && (evaluation.result === 'PASS' || !input.overrideReason)) {
-        throw new ForbiddenError('Only sales can confirm orders; credit controllers confirm only to override a failed credit check');
+        throw new ForbiddenError(
+          'Only sales can confirm orders; credit controllers confirm only to override a failed credit check',
+        );
       }
       const checkId = await this.saveCheck(tx, actor, fresh, evaluation);
       if (evaluation.result !== 'PASS') {
@@ -743,12 +832,18 @@ export class SalesOrdersService {
               : 'You are not allowed to override the credit limit',
           );
         }
-        await tx.creditOverride.create({ data: { creditCheckId: checkId, approvedById: actor.userId, reason } });
+        await tx.creditOverride.create({
+          data: { creditCheckId: checkId, approvedById: actor.userId, reason },
+        });
         await this.audit.log(tx, actor, {
           entityType: 'sales_order',
           entityId: id,
           action: 'credit_override',
-          details: { result: evaluation.result, excess: evaluation.excess.toFixed(2), reasons: evaluation.reasons },
+          details: {
+            result: evaluation.result,
+            excess: evaluation.excess.toFixed(2),
+            reasons: evaluation.reasons,
+          },
           reason,
         });
         await this.audit.activity(tx, actor, {
@@ -794,14 +889,36 @@ export class SalesOrdersService {
         });
       }
       if (so.customer.status === 'PROSPECT') {
-        await tx.customer.update({ where: { id: so.customerId }, data: { status: 'ACTIVE', version: { increment: 1 } } });
-        await this.audit.log(tx, actor, { entityType: 'customer', entityId: so.customerId, action: 'update', before: { status: 'PROSPECT' }, after: { status: 'ACTIVE' }, reason: `First order ${so.number} confirmed` });
+        await tx.customer.update({
+          where: { id: so.customerId },
+          data: { status: 'ACTIVE', version: { increment: 1 } },
+        });
+        await this.audit.log(tx, actor, {
+          entityType: 'customer',
+          entityId: so.customerId,
+          action: 'update',
+          before: { status: 'PROSPECT' },
+          after: { status: 'ACTIVE' },
+          reason: `First order ${so.number} confirmed`,
+        });
       }
       await tx.salesOrder.update({
         where: { id },
-        data: { status: 'CONFIRMED', confirmedAt: new Date(), confirmedById: actor.userId, updatedById: actor.userId, version: { increment: 1 } },
+        data: {
+          status: 'CONFIRMED',
+          confirmedAt: new Date(),
+          confirmedById: actor.userId,
+          updatedById: actor.userId,
+          version: { increment: 1 },
+        },
       });
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: id, action: 'confirm', before: { status: so.status }, after: { status: 'CONFIRMED', fxRate: fxRate.toFixed() } });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: id,
+        action: 'confirm',
+        before: { status: so.status },
+        after: { status: 'CONFIRMED', fxRate: fxRate.toFixed() },
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'sales_order.confirmed',
         entityType: 'sales_order',
@@ -843,9 +960,13 @@ export class SalesOrdersService {
     const so = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
       assertVersion('Sales order', current.version, version);
-      if (!['CONFIRMED', 'ON_HOLD'].includes(current.status)) throw new BusinessRuleError(`A ${current.status} order cannot be reopened`);
+      if (!['CONFIRMED', 'ON_HOLD'].includes(current.status))
+        throw new BusinessRuleError(`A ${current.status} order cannot be reopened`);
       if ((await this.allocationCount(tx, id)) > 0) {
-        throw new BusinessRuleError('Purchases are linked to this order. Remove the allocations before reopening.', 'HAS_ALLOCATIONS');
+        throw new BusinessRuleError(
+          'Purchases are linked to this order. Remove the allocations before reopening.',
+          'HAS_ALLOCATIONS',
+        );
       }
       await tx.salesOrderPaymentSchedule.deleteMany({ where: { salesOrderId: id } });
       const updated = await tx.salesOrder.update({
@@ -853,7 +974,14 @@ export class SalesOrdersService {
         data: { status: 'DRAFT', updatedById: actor.userId, version: { increment: 1 } },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: id, action: 'reopen', before: { status: current.status }, after: { status: 'DRAFT' }, reason });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: id,
+        action: 'reopen',
+        before: { status: current.status },
+        after: { status: 'DRAFT' },
+        reason,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'sales_order.reopened',
         entityType: 'sales_order',
@@ -872,7 +1000,8 @@ export class SalesOrdersService {
     const so = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
       assertVersion('Sales order', current.version, version);
-      if (['CANCELLED', 'CLOSED'].includes(current.status)) throw new BusinessRuleError(`Order is already ${current.status}`);
+      if (['CANCELLED', 'CLOSED'].includes(current.status))
+        throw new BusinessRuleError(`Order is already ${current.status}`);
       const allocations = current.lines.flatMap((l) => l.allocations);
       for (const a of allocations) {
         await tx.orderAllocation.delete({ where: { id: a.id } });
@@ -880,16 +1009,33 @@ export class SalesOrdersService {
           entityType: 'order_allocation',
           entityId: a.id,
           action: 'release',
-          details: { salesOrder: current.number, purchaseOrder: a.purchaseOrderLine.purchaseOrder.number, qtyBase: a.qtyBase },
+          details: {
+            salesOrder: current.number,
+            purchaseOrder: a.purchaseOrderLine.purchaseOrder.number,
+            qtyBase: a.qtyBase,
+          },
           reason: `Order cancelled: ${reason}`,
         });
       }
       const updated = await tx.salesOrder.update({
         where: { id },
-        data: { status: 'CANCELLED', cancelledAt: new Date(), cancelReason: reason, updatedById: actor.userId, version: { increment: 1 } },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          cancelReason: reason,
+          updatedById: actor.userId,
+          version: { increment: 1 },
+        },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: id, action: 'cancel', before: { status: current.status }, after: { status: 'CANCELLED' }, reason });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: id,
+        action: 'cancel',
+        before: { status: current.status },
+        after: { status: 'CANCELLED' },
+        reason,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'sales_order.cancelled',
         entityType: 'sales_order',
@@ -898,7 +1044,10 @@ export class SalesOrdersService {
         customerId: current.customerId,
         summary: `Order ${current.number} cancelled${allocations.length ? ` (${allocations.length} purchase allocation(s) released)` : ''}: ${reason}`,
       });
-      await this.audit.outbox(tx, 'sales_order.cancelled', 'sales_order', id, { number: current.number, reason });
+      await this.audit.outbox(tx, 'sales_order.cancelled', 'sales_order', id, {
+        number: current.number,
+        reason,
+      });
       return updated;
     });
     return this.toDto(actor, so);
@@ -908,13 +1057,24 @@ export class SalesOrdersService {
     await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
       if (current.status !== 'DRAFT' || current.confirmedAt) {
-        throw new BusinessRuleError('Only drafts that were never confirmed can be deleted. Cancel the order instead.');
+        throw new BusinessRuleError(
+          'Only drafts that were never confirmed can be deleted. Cancel the order instead.',
+        );
       }
       await tx.salesOrder.delete({ where: { id } });
       if (current.quotationId) {
-        await tx.quotation.update({ where: { id: current.quotationId }, data: { status: 'ACCEPTED', version: { increment: 1 } } });
+        await tx.quotation.update({
+          where: { id: current.quotationId },
+          data: { status: 'ACCEPTED', version: { increment: 1 } },
+        });
       }
-      await this.audit.log(tx, actor, { entityType: 'sales_order', entityId: id, action: 'delete', before: current, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'sales_order',
+        entityId: id,
+        action: 'delete',
+        before: current,
+        after: null,
+      });
     });
   }
 
@@ -922,20 +1082,34 @@ export class SalesOrdersService {
    * Closes a line short (the rest will not be delivered) or cancels it (nothing purchased).
    * Cancelling changes the order value, so totals and the payment schedule are recalculated.
    */
-  async closeLine(actor: Actor, id: string, lineId: string, mode: 'CLOSED_SHORT' | 'CANCELLED', reason: string): Promise<SalesOrderDto> {
+  async closeLine(
+    actor: Actor,
+    id: string,
+    lineId: string,
+    mode: 'CLOSED_SHORT' | 'CANCELLED',
+    reason: string,
+  ): Promise<SalesOrderDto> {
     const so = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
-      if (!['CONFIRMED', 'ON_HOLD'].includes(current.status)) throw new BusinessRuleError('Lines can only be closed on confirmed orders');
+      if (!['CONFIRMED', 'ON_HOLD'].includes(current.status))
+        throw new BusinessRuleError('Lines can only be closed on confirmed orders');
       const line = current.lines.find((l) => l.id === lineId);
       if (!line) throw new NotFoundError('Order line', lineId);
       if (line.lineStatus !== 'OPEN') throw new BusinessRuleError(`Line is already ${line.lineStatus}`);
       if (mode === 'CANCELLED' && line.allocations.length > 0) {
-        throw new BusinessRuleError('Purchases are linked to this line. Close it short or remove the allocations first.', 'HAS_ALLOCATIONS');
+        throw new BusinessRuleError(
+          'Purchases are linked to this line. Close it short or remove the allocations first.',
+          'HAS_ALLOCATIONS',
+        );
       }
-      await tx.salesOrderLine.update({ where: { id: lineId }, data: { lineStatus: mode, closedReason: reason } });
+      await tx.salesOrderLine.update({
+        where: { id: lineId },
+        data: { lineStatus: mode, closedReason: reason },
+      });
       if (mode === 'CANCELLED') {
         const remaining = current.lines.filter((l) => l.id !== lineId && l.lineStatus !== 'CANCELLED');
-        if (remaining.length === 0) throw new BusinessRuleError('This is the last line. Cancel the whole order instead.');
+        if (remaining.length === 0)
+          throw new BusinessRuleError('This is the last line. Cancel the whole order instead.');
         await this.recalculate(tx, actor, current.id);
       }
       await this.audit.log(tx, actor, {
@@ -960,12 +1134,17 @@ export class SalesOrdersService {
 
   /** Recomputes header totals and schedule amounts from active lines (keeps due dates). */
   private async recalculate(tx: Tx, actor: Actor, id: string): Promise<void> {
-    const so = await tx.salesOrder.findUniqueOrThrow({ where: { id }, include: { lines: true, paymentSchedule: { orderBy: { seq: 'asc' } } } });
+    const so = await tx.salesOrder.findUniqueOrThrow({
+      where: { id },
+      include: { lines: true, paymentSchedule: { orderBy: { seq: 'asc' } } },
+    });
     const company = await this.company.get(actor.companyId, tx);
     const minor = await this.company.minorUnits(so.currency, tx);
     const active = so.lines.filter((l) => l.lineStatus !== 'CANCELLED');
     const subtotal = sum(active.map((l) => l.lineTotal.toFixed()));
-    const gross = sum(active.map((l) => roundMoney(dec(l.qty.toFixed()).times(l.unitPrice.toFixed()), minor)));
+    const gross = sum(
+      active.map((l) => roundMoney(dec(l.qty.toFixed()).times(l.unitPrice.toFixed()), minor)),
+    );
     await tx.salesOrder.update({
       where: { id },
       data: {
@@ -978,7 +1157,10 @@ export class SalesOrdersService {
     });
     let allocated = new Decimal(0);
     for (const [i, s] of so.paymentSchedule.entries()) {
-      const amount = i === so.paymentSchedule.length - 1 ? subtotal.minus(allocated) : roundMoney(subtotal.times(s.percent.toFixed()).div(100), minor);
+      const amount =
+        i === so.paymentSchedule.length - 1
+          ? subtotal.minus(allocated)
+          : roundMoney(subtotal.times(s.percent.toFixed()).div(100), minor);
       allocated = allocated.plus(amount);
       await tx.salesOrderPaymentSchedule.update({ where: { id: s.id }, data: { amount: amount.toFixed() } });
     }
@@ -986,7 +1168,10 @@ export class SalesOrdersService {
 
   // ───────────── Awaiting purchase ─────────────
 
-  async awaitingPurchase(actor: Actor, q: ListQuery & { customerId?: string; productId?: string }): Promise<AwaitingPurchaseItemDto[]> {
+  async awaitingPurchase(
+    actor: Actor,
+    q: ListQuery & { customerId?: string; productId?: string },
+  ): Promise<AwaitingPurchaseItemDto[]> {
     const lines = await this.prisma.salesOrderLine.findMany({
       where: {
         lineStatus: 'OPEN',
@@ -997,7 +1182,15 @@ export class SalesOrdersService {
           ...(q.customerId ? { customerId: q.customerId } : {}),
         },
         ...(q.productId ? { variant: { productId: q.productId } } : {}),
-        ...(q.q ? { OR: [{ description: contains(q.q) }, { salesOrder: { number: contains(q.q) } }, { salesOrder: { customer: { companyName: contains(q.q) } } }] } : {}),
+        ...(q.q
+          ? {
+              OR: [
+                { description: contains(q.q) },
+                { salesOrder: { number: contains(q.q) } },
+                { salesOrder: { customer: { companyName: contains(q.q) } } },
+              ],
+            }
+          : {}),
       },
       include: { salesOrder: { include: { customer: true } }, variant: true },
       orderBy: [{ salesOrder: { confirmedAt: 'asc' } }, { lineNo: 'asc' }],
@@ -1028,13 +1221,25 @@ export class SalesOrdersService {
         remainingQtyBase: p.remainingToPurchase.toFixed(),
         unitPrice: l.unitPrice.toFixed(),
         currency: l.salesOrder.currency,
-        daysSinceConfirmation: l.salesOrder.confirmedAt ? diffDays(l.salesOrder.confirmedAt.toISOString().slice(0, 10), today) : 0,
+        daysSinceConfirmation: l.salesOrder.confirmedAt
+          ? diffDays(l.salesOrder.confirmedAt.toISOString().slice(0, 10), today)
+          : 0,
       });
     }
     return out;
   }
 }
 
-function describeLines(lines: { lineNo: number; description: string; qty: Prisma.Decimal; uom: string; unitPrice: Prisma.Decimal }[]): string {
-  return lines.map((l) => `${l.lineNo}: ${l.description} ${l.qty.toFixed()} ${l.uom} @ ${l.unitPrice.toFixed()}`).join(' | ');
+function describeLines(
+  lines: {
+    lineNo: number;
+    description: string;
+    qty: Prisma.Decimal;
+    uom: string;
+    unitPrice: Prisma.Decimal;
+  }[],
+): string {
+  return lines
+    .map((l) => `${l.lineNo}: ${l.description} ${l.qty.toFixed()} ${l.uom} @ ${l.unitPrice.toFixed()}`)
+    .join(' | ');
 }

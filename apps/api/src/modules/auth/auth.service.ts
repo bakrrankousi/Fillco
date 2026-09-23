@@ -11,7 +11,8 @@ import { PrismaService } from '../../common/prisma.service';
 import { hashToken } from '../../common/session.guard';
 
 /** A valid argon2id hash of a random string, used to keep timing equal for unknown e-mails. */
-const DUMMY_HASH = '$argon2id$v=19$m=19456,t=2,p=1$3No97m2TprxmF4KwJWorwg$oS6vD/G6iSoKXv3HEWmUqJpmD7TLeas++Yg67Tx8ilU';
+const DUMMY_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$3No97m2TprxmF4KwJWorwg$oS6vD/G6iSoKXv3HEWmUqJpmD7TLeas++Yg67Tx8ilU';
 
 export interface LoginResult {
   token: string;
@@ -28,7 +29,12 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
-  async login(email: string, password: string, ip: string | null, userAgent: string | null): Promise<LoginResult> {
+  async login(
+    email: string,
+    password: string,
+    ip: string | null,
+    userAgent: string | null,
+  ): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     const now = new Date();
     const invalid = () => new UnauthorizedError('Email or password is incorrect');
@@ -67,10 +73,25 @@ export class AuthService {
     const expiresAt = new Date(now.getTime() + this.config.SESSION_TTL_HOURS * 3_600_000);
     await this.prisma.$transaction(async (tx) => {
       await tx.session.create({
-        data: { userId: user.id, tokenHash: hashToken(token), csrfToken, expiresAt, ip, userAgent: userAgent?.slice(0, 300) },
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(token),
+          csrfToken,
+          expiresAt,
+          ip,
+          userAgent: userAgent?.slice(0, 300),
+        },
       });
-      await tx.user.update({ where: { id: user.id }, data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now } });
-      await this.audit.log(tx, null, { entityType: 'user', entityId: user.id, action: 'login', details: { ip } });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now },
+      });
+      await this.audit.log(tx, null, {
+        entityType: 'user',
+        entityId: user.id,
+        action: 'login',
+        details: { ip },
+      });
     });
     return { token, expiresAt, me: await this.me(user.id, csrfToken) };
   }
@@ -118,7 +139,11 @@ export class AuthService {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { passwordHash: await hashPassword(input.newPassword), mustChangePassword: false, version: { increment: 1 } },
+        data: {
+          passwordHash: await hashPassword(input.newPassword),
+          mustChangePassword: false,
+          version: { increment: 1 },
+        },
       });
       // Sign out every other session of this user.
       await tx.session.updateMany({

@@ -4,7 +4,12 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
   API_PORT: z.coerce.number().int().default(4000),
-  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 30).default(12),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .default(12),
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .default('false')
@@ -23,7 +28,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!cached) {
     const parsed = schema.safeParse(env);
     if (!parsed.success) {
-      throw new Error(`Invalid environment: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`);
+      throw new Error(
+        `Invalid environment: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`,
+      );
     }
     cached = parsed.data;
   }

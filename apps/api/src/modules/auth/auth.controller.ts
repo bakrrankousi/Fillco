@@ -1,5 +1,11 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
-import { changePasswordSchema, loginSchema, type ChangePasswordInput, type LoginInput, type MeDto } from '@fillco/contracts';
+import {
+  changePasswordSchema,
+  loginSchema,
+  type ChangePasswordInput,
+  type LoginInput,
+  type MeDto,
+} from '@fillco/contracts';
 import type { Request, Response } from 'express';
 import { loadConfig, SESSION_COOKIE } from '../../config';
 import { Actor, CurrentActor, Public } from '../../common/actor';
@@ -14,7 +20,8 @@ function rateLimit(ip: string, limit = 20, windowMs = 60_000): void {
   const recent = (attempts.get(ip) ?? []).filter((t) => now - t < windowMs);
   recent.push(now);
   attempts.set(ip, recent);
-  if (recent.length > limit) throw new AppError(429, 'RATE_LIMITED', 'Too many login attempts. Wait a minute.');
+  if (recent.length > limit)
+    throw new AppError(429, 'RATE_LIMITED', 'Too many login attempts. Wait a minute.');
 }
 
 @Controller('auth')

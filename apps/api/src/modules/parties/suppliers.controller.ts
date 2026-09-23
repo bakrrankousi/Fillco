@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+} from '@nestjs/common';
 import {
   addressSchema,
   bankAccountSchema,
@@ -43,19 +55,26 @@ export class SuppliersController {
   ): Promise<Page<SupplierListItemDto> | void> {
     const result = await this.suppliers.list(actor, q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<SupplierListItemDto>(res, actor, 'suppliers', 'Suppliers', [
-      { header: 'Code', value: (r) => r.code, width: 10 },
-      { header: 'Company', value: (r) => r.companyName, width: 36 },
-      { header: 'Type', value: (r) => r.supplierType, width: 16 },
-      { header: 'Country', value: (r) => r.countryCode, width: 8 },
-      { header: 'City', value: (r) => r.city },
-      { header: 'Status', value: (r) => r.status },
-      { header: 'Currency', value: (r) => r.defaultCurrency, width: 9 },
-      { header: 'Payment terms', value: (r) => r.paymentTerm, width: 30 },
-      { header: 'Lead time (days)', value: (r) => r.productionLeadTimeDays },
-      { header: 'Phone', value: (r) => r.phone, width: 18 },
-      { header: 'Email', value: (r) => r.email, width: 28 },
-    ], result.rows);
+    await sendExcel<SupplierListItemDto>(
+      res,
+      actor,
+      'suppliers',
+      'Suppliers',
+      [
+        { header: 'Code', value: (r) => r.code, width: 10 },
+        { header: 'Company', value: (r) => r.companyName, width: 36 },
+        { header: 'Type', value: (r) => r.supplierType, width: 16 },
+        { header: 'Country', value: (r) => r.countryCode, width: 8 },
+        { header: 'City', value: (r) => r.city },
+        { header: 'Status', value: (r) => r.status },
+        { header: 'Currency', value: (r) => r.defaultCurrency, width: 9 },
+        { header: 'Payment terms', value: (r) => r.paymentTerm, width: 30 },
+        { header: 'Lead time (days)', value: (r) => r.productionLeadTimeDays },
+        { header: 'Phone', value: (r) => r.phone, width: 18 },
+        { header: 'Email', value: (r) => r.email, width: 28 },
+      ],
+      result.rows,
+    );
   }
 
   @Get(':id')
@@ -66,7 +85,10 @@ export class SuppliersController {
 
   @Post()
   @RequirePermission('supplier.create')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(createSupplierSchema)) body: CreateSupplierInput): Promise<SupplierDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(createSupplierSchema)) body: CreateSupplierInput,
+  ): Promise<SupplierDto> {
     return this.suppliers.create(actor, body);
   }
 

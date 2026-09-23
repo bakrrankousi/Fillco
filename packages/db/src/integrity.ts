@@ -163,7 +163,12 @@ export async function runIntegrityChecks(prisma: PrismaClient): Promise<Integrit
   const results: IntegrityCheckResult[] = [];
   for (const check of INTEGRITY_CHECKS) {
     const rows = await prisma.$queryRawUnsafe<unknown[]>(check.sql);
-    results.push({ name: check.name, description: check.description, violations: rows.length, sample: rows.slice(0, 5) });
+    results.push({
+      name: check.name,
+      description: check.description,
+      violations: rows.length,
+      sample: rows.slice(0, 5),
+    });
   }
   return results;
 }

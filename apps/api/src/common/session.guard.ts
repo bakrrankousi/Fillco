@@ -29,7 +29,10 @@ export class SessionGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<ActorRequest>();
     req.requestId ??= (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
-    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [ctx.getHandler(), ctx.getClass()]);
+    const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
     if (isPublic) return true;
 
     const token = (req.cookies as Record<string, string> | undefined)?.[SESSION_COOKIE];
@@ -53,7 +56,8 @@ export class SessionGuard implements CanActivate {
     }
 
     const permissions = new Set<Permission>();
-    for (const ur of session.user.roles) for (const rp of ur.role.permissions) permissions.add(rp.permission as Permission);
+    for (const ur of session.user.roles)
+      for (const rp of ur.role.permissions) permissions.add(rp.permission as Permission);
     req.actor = {
       userId: session.user.id,
       sessionId: session.id,

@@ -33,7 +33,9 @@ import { PrismaService, Tx } from '../../common/prisma.service';
 import { d, ref, tsReq } from '../../common/serialize';
 
 type AttributeRow = Prisma.AttributeDefinitionGetPayload<object>;
-type CategoryRow = Prisma.ProductCategoryGetPayload<{ include: { attributes: { include: { attribute: true } } } }>;
+type CategoryRow = Prisma.ProductCategoryGetPayload<{
+  include: { attributes: { include: { attribute: true } } };
+}>;
 
 export interface EffectiveSpec {
   definitions: AttributeDefinition[];
@@ -117,7 +119,8 @@ export class CatalogService {
     const chain: CategoryRow[] = [];
     for (let c = byId.get(categoryId); c; c = c.parentId ? byId.get(c.parentId) : undefined) chain.unshift(c);
     const merged = new Map<string, { row: CategoryRow['attributes'][number]; from: CategoryRow }>();
-    for (const cat of chain) for (const row of cat.attributes) merged.set(row.attribute.code, { row, from: cat });
+    for (const cat of chain)
+      for (const row of cat.attributes) merged.set(row.attribute.code, { row, from: cat });
     const entries = [...merged.values()].sort((a, b) => a.row.sortOrder - b.row.sortOrder);
     return {
       definitions: entries.map((e) => toDomainDefinition(e.row.attribute)),
@@ -144,7 +147,8 @@ export class CatalogService {
   private path(categoryId: string, all: CategoryRow[]): string {
     const byId = new Map(all.map((c) => [c.id, c]));
     const names: string[] = [];
-    for (let c = byId.get(categoryId); c; c = c.parentId ? byId.get(c.parentId) : undefined) names.unshift(c.name);
+    for (let c = byId.get(categoryId); c; c = c.parentId ? byId.get(c.parentId) : undefined)
+      names.unshift(c.name);
     return names.join(' › ');
   }
 
@@ -178,22 +182,48 @@ export class CatalogService {
       }
       const before = id ? await tx.productCategory.findUnique({ where: { id } }) : null;
       if (id && !before) throw new NotFoundError('Category', id);
-      const data = { code: input.code, name: input.name, parentId: input.parentId ?? null, sortOrder: input.sortOrder };
-      const c = id ? await tx.productCategory.update({ where: { id }, data }) : await tx.productCategory.create({ data });
-      await this.audit.log(tx, actor, { entityType: 'product_category', entityId: c.id, action: id ? 'update' : 'create', before, after: c });
+      const data = {
+        code: input.code,
+        name: input.name,
+        parentId: input.parentId ?? null,
+        sortOrder: input.sortOrder,
+      };
+      const c = id
+        ? await tx.productCategory.update({ where: { id }, data })
+        : await tx.productCategory.create({ data });
+      await this.audit.log(tx, actor, {
+        entityType: 'product_category',
+        entityId: c.id,
+        action: id ? 'update' : 'create',
+        before,
+        after: c,
+      });
     });
     return this.categories();
   }
 
-  async setCategoryAttributes(actor: Actor, categoryId: string, input: CategoryAttributesInput): Promise<CategoryDto[]> {
+  async setCategoryAttributes(
+    actor: Actor,
+    categoryId: string,
+    input: CategoryAttributesInput,
+  ): Promise<CategoryDto[]> {
     await this.prisma.tx(async (tx) => {
-      const cat = await tx.productCategory.findUnique({ where: { id: categoryId }, include: { attributes: { include: { attribute: true } } } });
+      const cat = await tx.productCategory.findUnique({
+        where: { id: categoryId },
+        include: { attributes: { include: { attribute: true } } },
+      });
       if (!cat) throw new NotFoundError('Category', categoryId);
       await tx.categoryAttribute.deleteMany({ where: { categoryId } });
       await tx.categoryAttribute.createMany({ data: input.attributes.map((a) => ({ ...a, categoryId })) });
-      const after = await tx.categoryAttribute.findMany({ where: { categoryId }, include: { attribute: true } });
+      const after = await tx.categoryAttribute.findMany({
+        where: { categoryId },
+        include: { attribute: true },
+      });
       const describe = (rows: typeof after) =>
-        rows.map((r) => `${r.attribute.code}${r.isRequired ? '*' : ''}${r.isVariantDefining ? '' : '(info)'}`).sort().join(', ');
+        rows
+          .map((r) => `${r.attribute.code}${r.isRequired ? '*' : ''}${r.isVariantDefining ? '' : '(info)'}`)
+          .sort()
+          .join(', ');
       await this.audit.log(tx, actor, {
         entityType: 'product_category',
         entityId: categoryId,
@@ -210,13 +240,20 @@ export class CatalogService {
     return rows.map(attributeDto);
   }
 
-  async saveAttribute(actor: Actor, input: AttributeDefinitionInput, id?: string): Promise<AttributeDefinitionDto> {
+  async saveAttribute(
+    actor: Actor,
+    input: AttributeDefinitionInput,
+    id?: string,
+  ): Promise<AttributeDefinitionDto> {
     return this.prisma.tx(async (tx) => {
       const before = id ? await tx.attributeDefinition.findUnique({ where: { id } }) : null;
       if (id && !before) throw new NotFoundError('Attribute', id);
       if (before && (before.dataType !== input.dataType || before.code !== input.code)) {
         const used = await tx.categoryAttribute.count({ where: { attributeId: before.id } });
-        if (used > 0) throw new BusinessRuleError('Code and data type cannot change once the attribute is used by a category');
+        if (used > 0)
+          throw new BusinessRuleError(
+            'Code and data type cannot change once the attribute is used by a category',
+          );
       }
       const data = {
         code: input.code,
@@ -230,8 +267,16 @@ export class CatalogService {
         maxValue: input.maxValue ?? null,
         description: input.description ?? null,
       };
-      const a = id ? await tx.attributeDefinition.update({ where: { id }, data }) : await tx.attributeDefinition.create({ data });
-      await this.audit.log(tx, actor, { entityType: 'attribute_definition', entityId: a.id, action: id ? 'update' : 'create', before, after: a });
+      const a = id
+        ? await tx.attributeDefinition.update({ where: { id }, data })
+        : await tx.attributeDefinition.create({ data });
+      await this.audit.log(tx, actor, {
+        entityType: 'attribute_definition',
+        entityId: a.id,
+        action: id ? 'update' : 'create',
+        before,
+        after: a,
+      });
       return attributeDto(a);
     });
   }
@@ -239,7 +284,9 @@ export class CatalogService {
   // ───────────── Products ─────────────
 
   private fixedValues(p: Pick<ProductRow, 'fixedAttributes'>): SpecValues {
-    return Object.fromEntries(p.fixedAttributes.map((f) => [f.attribute.code, f.value as string | number | boolean]));
+    return Object.fromEntries(
+      p.fixedAttributes.map((f) => [f.attribute.code, f.value as string | number | boolean]),
+    );
   }
 
   private async productDto(p: ProductRow): Promise<ProductDto> {
@@ -271,14 +318,18 @@ export class CatalogService {
     };
   }
 
-  async listProducts(q: ProductFilter): Promise<{ page: Page<ProductListItemDto>; rows: ProductListItemDto[] }> {
+  async listProducts(
+    q: ProductFilter,
+  ): Promise<{ page: Page<ProductListItemDto>; rows: ProductListItemDto[] }> {
     const all = await this.allCategories();
     let categoryIds: string[] | undefined;
     if (q.categoryId) {
       // Include sub-categories.
       categoryIds = [q.categoryId];
-      for (let grew = true; grew; ) {
-        const next = all.filter((c) => c.parentId && categoryIds!.includes(c.parentId) && !categoryIds!.includes(c.id)).map((c) => c.id);
+      for (let grew = true; grew;) {
+        const next = all
+          .filter((c) => c.parentId && categoryIds!.includes(c.parentId) && !categoryIds!.includes(c.id))
+          .map((c) => c.id);
         grew = next.length > 0;
         categoryIds.push(...next);
       }
@@ -303,7 +354,11 @@ export class CatalogService {
         include: { category: true, _count: { select: { variants: true } } },
         orderBy: orderBy(
           q.sort,
-          { code: (dir) => ({ code: dir }), name: (dir) => ({ name: dir }), createdAt: (dir) => ({ createdAt: dir }) },
+          {
+            code: (dir) => ({ code: dir }),
+            name: (dir) => ({ name: dir }),
+            createdAt: (dir) => ({ createdAt: dir }),
+          },
           { name: 'asc' },
         ) as Prisma.ProductOrderByWithRelationInput[],
         ...paging(q),
@@ -334,16 +389,24 @@ export class CatalogService {
   /** Validates fixed attribute values against the category's rules. */
   private async validateFixed(tx: Tx, categoryId: string, input: Record<string, unknown>) {
     const spec = await this.effectiveSpec(categoryId, tx);
-    const cleaned = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+    const cleaned = Object.fromEntries(
+      Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+    );
     const keys = Object.keys(cleaned);
     const result = validateSpec(
       spec.definitions,
       spec.rules.filter((r) => keys.includes(r.code)).map((r) => ({ ...r, required: false })),
       cleaned,
     );
-    for (const k of keys) if (!spec.rules.some((r) => r.code === k)) result.errors[k] = `"${k}" does not apply to this category`;
+    for (const k of keys)
+      if (!spec.rules.some((r) => r.code === k)) result.errors[k] = `"${k}" does not apply to this category`;
     if (Object.keys(result.errors).length) {
-      throw new BusinessRuleError('Invalid fixed specification', 'VALIDATION', undefined, prefixErrors('fixedAttributes', result.errors));
+      throw new BusinessRuleError(
+        'Invalid fixed specification',
+        'VALIDATION',
+        undefined,
+        prefixErrors('fixedAttributes', result.errors),
+      );
     }
     const attrs = await tx.attributeDefinition.findMany({ where: { code: { in: keys } } });
     return attrs.map((a) => ({ attributeId: a.id, value: result.values[a.code] as Prisma.InputJsonValue }));
@@ -351,7 +414,8 @@ export class CatalogService {
 
   private async assertUoms(tx: Tx, codes: (string | undefined)[]): Promise<void> {
     for (const code of codes) {
-      if (code && !(await tx.uom.findUnique({ where: { code } }))) throw new BusinessRuleError(`Unknown unit ${code}`);
+      if (code && !(await tx.uom.findUnique({ where: { code } })))
+        throw new BusinessRuleError(`Unknown unit ${code}`);
     }
   }
 
@@ -382,7 +446,9 @@ export class CatalogService {
       assertVersion('Product', current.version, input.version);
       const specChanges =
         (input.categoryId && input.categoryId !== current.categoryId) ||
-        (input.fixedAttributes && JSON.stringify(sortKeys(input.fixedAttributes)) !== JSON.stringify(sortKeys(this.fixedValues(current))));
+        (input.fixedAttributes &&
+          JSON.stringify(sortKeys(input.fixedAttributes)) !==
+            JSON.stringify(sortKeys(this.fixedValues(current))));
       if (specChanges && current.variants.length > 0) {
         throw new BusinessRuleError(
           'Category and fixed specification cannot change once variants exist. Create a new product instead.',
@@ -396,7 +462,11 @@ export class CatalogService {
         await tx.productAttributeValue.deleteMany({ where: { productId: id } });
         await tx.productAttributeValue.createMany({ data: fixed.map((f) => ({ ...f, productId: id })) });
       }
-      const updated = await tx.product.update({ where: { id }, data: { ...fields, version: { increment: 1 } }, include: productInclude });
+      const updated = await tx.product.update({
+        where: { id },
+        data: { ...fields, version: { increment: 1 } },
+        include: productInclude,
+      });
       await this.audit.log(tx, actor, {
         entityType: 'product',
         entityId: id,
@@ -424,7 +494,9 @@ export class CatalogService {
     if (!product.isActive) throw new BusinessRuleError(`Product ${product.code} is inactive`);
     const spec = await this.effectiveSpec(product.categoryId, tx);
     const fixed = this.fixedValues(product);
-    const cleaned = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+    const cleaned = Object.fromEntries(
+      Object.entries(input).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+    );
     const result = validateSpec(spec.definitions, spec.rules, cleaned, fixed);
     if (!result.ok) {
       throw new BusinessRuleError(
@@ -437,7 +509,13 @@ export class CatalogService {
     const canonical = canonicalSpec(result.values, spec.rules);
     const specHash = createHash('sha256').update(canonical).digest('hex');
     const defining = JSON.parse(canonical) as SpecValues;
-    const displayName = describeVariant(product.name, spec.definitions, spec.rules, result.values, Object.keys(fixed));
+    const displayName = describeVariant(
+      product.name,
+      spec.definitions,
+      spec.rules,
+      result.values,
+      Object.keys(fixed),
+    );
     await tx.productVariant.createMany({
       data: [
         {
@@ -450,7 +528,9 @@ export class CatalogService {
       ],
       skipDuplicates: true,
     });
-    const variant = await tx.productVariant.findUniqueOrThrow({ where: { productId_specHash: { productId, specHash } } });
+    const variant = await tx.productVariant.findUniqueOrThrow({
+      where: { productId_specHash: { productId, specHash } },
+    });
     return { variant, values: result.values, product };
   }
 

@@ -96,7 +96,10 @@ export const exchangeRateSchema = z
     toCurrency: currencyCode,
     rate: fxRate,
   })
-  .refine((v) => v.fromCurrency !== v.toCurrency, { message: 'Currencies must differ', path: ['toCurrency'] });
+  .refine((v) => v.fromCurrency !== v.toCurrency, {
+    message: 'Currencies must differ',
+    path: ['toCurrency'],
+  });
 export type ExchangeRateInput = z.infer<typeof exchangeRateSchema>;
 
 export const currencySchema = z.object({
@@ -243,7 +246,10 @@ export const bankAccountSchema = z
     bankAddress: optionalText(),
     notes: optionalText(1000),
   })
-  .refine((v) => v.iban || v.accountNumber, { message: 'Enter an IBAN or an account number', path: ['iban'] });
+  .refine((v) => v.iban || v.accountNumber, {
+    message: 'Enter an IBAN or an account number',
+    path: ['iban'],
+  });
 export type BankAccountInput = z.infer<typeof bankAccountSchema>;
 
 // ───────────── Catalog ─────────────
@@ -491,4 +497,3 @@ export const allocationSchema = z.object({
 export type AllocationInput = z.infer<typeof allocationSchema>;
 
 export const closeLineSchema = z.object({ reason: requiredText(1000) });
-

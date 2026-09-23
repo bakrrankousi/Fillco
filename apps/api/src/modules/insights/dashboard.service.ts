@@ -27,30 +27,52 @@ export class DashboardService {
     const showPurchases = can(actor, 'purchase_order.view');
     const showCosts = canSeeCosts(actor);
 
-    const sumBase = (rows: { grandTotalBase: Prisma.Decimal }[]) => sum(rows.map((r) => r.grandTotalBase.toFixed())).toFixed(2);
+    const sumBase = (rows: { grandTotalBase: Prisma.Decimal }[]) =>
+      sum(rows.map((r) => r.grandTotalBase.toFixed())).toFixed(2);
 
     const [open, pending, monthSales, yearSales] = showSales
       ? await Promise.all([
-          this.prisma.salesOrder.findMany({ where: { ...soScope, status: { in: ['CONFIRMED', 'ON_HOLD'] } }, select: { id: true, status: true, grandTotalBase: true } }),
-          this.prisma.salesOrder.findMany({ where: { ...soScope, status: { in: ['DRAFT', 'PENDING_CONFIRMATION'] } }, select: { grandTotalBase: true } }),
           this.prisma.salesOrder.findMany({
-            where: { ...soScope, status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] }, orderDate: { gte: isoToDate(monthStart) } },
+            where: { ...soScope, status: { in: ['CONFIRMED', 'ON_HOLD'] } },
+            select: { id: true, status: true, grandTotalBase: true },
+          }),
+          this.prisma.salesOrder.findMany({
+            where: { ...soScope, status: { in: ['DRAFT', 'PENDING_CONFIRMATION'] } },
             select: { grandTotalBase: true },
           }),
           this.prisma.salesOrder.findMany({
-            where: { ...soScope, status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] }, orderDate: { gte: isoToDate(yearStart) } },
+            where: {
+              ...soScope,
+              status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] },
+              orderDate: { gte: isoToDate(monthStart) },
+            },
+            select: { grandTotalBase: true },
+          }),
+          this.prisma.salesOrder.findMany({
+            where: {
+              ...soScope,
+              status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] },
+              orderDate: { gte: isoToDate(yearStart) },
+            },
             select: { grandTotalBase: true, orderDate: true, customerId: true },
           }),
         ])
       : [[], [], [], []];
 
-    const progress = await loadFulfillment(this.prisma, open.map((o) => o.id));
+    const progress = await loadFulfillment(
+      this.prisma,
+      open.map((o) => o.id),
+    );
     let awaitingLines = 0;
     let awaitingOrders = 0;
     for (const o of open) {
       if (o.status !== 'CONFIRMED') continue;
       const d = deriveSalesOrderStatus('CONFIRMED', progress.get(o.id) ?? []);
-      const lines = (progress.get(o.id) ?? []).filter((l) => l.lineStatus === 'OPEN' && Number(l.ordered) > Number(l.purchasedCommitted) + Number(l.purchasedPending));
+      const lines = (progress.get(o.id) ?? []).filter(
+        (l) =>
+          l.lineStatus === 'OPEN' &&
+          Number(l.ordered) > Number(l.purchasedCommitted) + Number(l.purchasedPending),
+      );
       if (d.remainingToPurchase.gt(0)) {
         awaitingOrders++;
         awaitingLines += lines.length;
@@ -60,7 +82,10 @@ export class DashboardService {
     const poScope: Prisma.PurchaseOrderWhereInput = { companyId: actor.companyId };
     const [openPos, delayed, monthPurch, yearPurch] = showPurchases
       ? await Promise.all([
-          this.prisma.purchaseOrder.findMany({ where: { ...poScope, status: { in: ['DRAFT', 'SENT', 'CONFIRMED', 'IN_PRODUCTION', 'READY'] } }, select: { grandTotalBase: true } }),
+          this.prisma.purchaseOrder.findMany({
+            where: { ...poScope, status: { in: ['DRAFT', 'SENT', 'CONFIRMED', 'IN_PRODUCTION', 'READY'] } },
+            select: { grandTotalBase: true },
+          }),
           this.prisma.purchaseOrder.count({
             where: {
               ...poScope,
@@ -72,11 +97,19 @@ export class DashboardService {
             },
           }),
           this.prisma.purchaseOrder.findMany({
-            where: { ...poScope, status: { in: ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'CLOSED'] }, poDate: { gte: isoToDate(monthStart) } },
+            where: {
+              ...poScope,
+              status: { in: ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'CLOSED'] },
+              poDate: { gte: isoToDate(monthStart) },
+            },
             select: { grandTotalBase: true },
           }),
           this.prisma.purchaseOrder.findMany({
-            where: { ...poScope, status: { in: ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'CLOSED'] }, poDate: { gte: isoToDate(yearStart) } },
+            where: {
+              ...poScope,
+              status: { in: ['CONFIRMED', 'IN_PRODUCTION', 'READY', 'CLOSED'] },
+              poDate: { gte: isoToDate(yearStart) },
+            },
             select: { grandTotalBase: true },
           }),
         ])
@@ -84,7 +117,13 @@ export class DashboardService {
 
     const [quotationsOpen, quotationsExpiringSoon] = can(actor, 'quotation.view')
       ? await Promise.all([
-          this.prisma.quotation.count({ where: { companyId: actor.companyId, ...viaCustomerScope(actor), status: { in: ['DRAFT', 'SENT'] } } }),
+          this.prisma.quotation.count({
+            where: {
+              companyId: actor.companyId,
+              ...viaCustomerScope(actor),
+              status: { in: ['DRAFT', 'SENT'] },
+            },
+          }),
           this.prisma.quotation.count({
             where: {
               companyId: actor.companyId,
@@ -97,34 +136,45 @@ export class DashboardService {
       : [0, 0];
 
     const pendingBank = can(actor, 'supplier_bank.approve')
-      ? await this.prisma.supplierBankAccount.count({ where: { status: 'PENDING_APPROVAL', supplier: { companyId: actor.companyId } } })
+      ? await this.prisma.supplierBankAccount.count({
+          where: { status: 'PENDING_APPROVAL', supplier: { companyId: actor.companyId } },
+        })
       : 0;
 
     // Monthly sales for the last 12 months (confirmed orders, base currency).
     const since = addDays(`${today.slice(0, 7)}-01`, -335).slice(0, 7) + '-01';
     const history = showSales
       ? await this.prisma.salesOrder.findMany({
-          where: { ...soScope, status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] }, orderDate: { gte: isoToDate(since) } },
+          where: {
+            ...soScope,
+            status: { in: ['CONFIRMED', 'ON_HOLD', 'CLOSED'] },
+            orderDate: { gte: isoToDate(since) },
+          },
           select: { orderDate: true, grandTotalBase: true },
         })
       : [];
     const months: string[] = [];
-    for (let d = since; months.length < 12; ) {
+    for (let d = since; months.length < 12;) {
       months.push(d.slice(0, 7));
       const [y, m] = d.split('-').map(Number) as [number, number];
       d = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
     }
     const byMonth = new Map(months.map((m) => [m, [] as string[]]));
-    for (const h of history) byMonth.get(h.orderDate.toISOString().slice(0, 7))?.push(h.grandTotalBase.toFixed());
+    for (const h of history)
+      byMonth.get(h.orderDate.toISOString().slice(0, 7))?.push(h.grandTotalBase.toFixed());
 
     const byCustomer = new Map<string, string[]>();
-    for (const s of yearSales) byCustomer.set(s.customerId, [...(byCustomer.get(s.customerId) ?? []), s.grandTotalBase.toFixed()]);
+    for (const s of yearSales)
+      byCustomer.set(s.customerId, [...(byCustomer.get(s.customerId) ?? []), s.grandTotalBase.toFixed()]);
     const top = [...byCustomer.entries()]
       .map(([id, values]) => ({ id, total: sum(values) }))
       .sort((a, b) => b.total.comparedTo(a.total))
       .slice(0, 5);
     const customers = new Map(
-      (await this.prisma.customer.findMany({ where: { id: { in: top.map((t) => t.id) } } })).map((c) => [c.id, c]),
+      (await this.prisma.customer.findMany({ where: { id: { in: top.map((t) => t.id) } } })).map((c) => [
+        c.id,
+        c,
+      ]),
     );
 
     return {
@@ -142,7 +192,10 @@ export class DashboardService {
       quotationsExpiringSoon,
       bankAccountsPendingApproval: pendingBank,
       salesByMonth: months.map((m) => ({ month: m, valueBase: sum(byMonth.get(m) ?? []).toFixed(2) })),
-      topCustomers: top.map((t) => ({ customer: refReq(customers.get(t.id)!), valueBase: t.total.toFixed(2) })),
+      topCustomers: top.map((t) => ({
+        customer: refReq(customers.get(t.id)!),
+        valueBase: t.total.toFixed(2),
+      })),
     };
   }
 }

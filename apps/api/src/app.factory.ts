@@ -17,7 +17,9 @@ export async function createApp(options: { logger?: boolean } = {}): Promise<INe
   app.use(helmet());
   app.use(cookieParser());
   app.setGlobalPrefix('api/v1');
-  const origins = config.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  const origins = config.CORS_ORIGINS.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   if (origins.length) app.enableCors({ origin: origins, credentials: true });
   app.enableShutdownHooks();
   return app;

@@ -26,7 +26,11 @@ type TermRow = Prisma.PaymentTermGetPayload<{ include: typeof termInclude }>;
 
 export function termSummary(t: TermRow): string {
   return describeInstallments(
-    t.installments.map((i) => ({ percent: i.percent.toFixed(), triggerEvent: i.triggerEvent, offsetDays: i.offsetDays })),
+    t.installments.map((i) => ({
+      percent: i.percent.toFixed(),
+      triggerEvent: i.triggerEvent,
+      offsetDays: i.offsetDays,
+    })),
   );
 }
 
@@ -116,13 +120,24 @@ export class SettingsService {
       try {
         new Intl.DateTimeFormat('en', { timeZone: input.timezone });
       } catch {
-        throw new BusinessRuleError('Unknown timezone', 'VALIDATION', undefined, { timezone: ['Unknown timezone'] });
+        throw new BusinessRuleError('Unknown timezone', 'VALIDATION', undefined, {
+          timezone: ['Unknown timezone'],
+        });
       }
     }
     const { version: _v, ...data } = input;
     await this.prisma.tx(async (tx) => {
-      const updated = await tx.company.update({ where: { id: current.id }, data: { ...data, version: { increment: 1 } } });
-      await this.audit.log(tx, actor, { entityType: 'company', entityId: current.id, action: 'update', before: current, after: updated });
+      const updated = await tx.company.update({
+        where: { id: current.id },
+        data: { ...data, version: { increment: 1 } },
+      });
+      await this.audit.log(tx, actor, {
+        entityType: 'company',
+        entityId: current.id,
+        action: 'update',
+        before: current,
+        after: updated,
+      });
     });
     return this.company(actor);
   }
@@ -130,23 +145,40 @@ export class SettingsService {
   // ───────────── Lookups ─────────────
 
   async lookups(actor: Actor): Promise<LookupsDto> {
-    const [company, currencies, countries, ports, incoterms, uoms, packaging, terms, users] = await Promise.all([
-      this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId } }),
-      this.prisma.currency.findMany({ orderBy: { code: 'asc' } }),
-      this.prisma.country.findMany({ orderBy: { name: 'asc' } }),
-      this.prisma.port.findMany({ orderBy: [{ countryCode: 'asc' }, { name: 'asc' }] }),
-      this.prisma.incoterm.findMany(),
-      this.prisma.uom.findMany({ orderBy: { factorToBase: 'desc' } }),
-      this.prisma.packagingType.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-      this.prisma.paymentTerm.findMany({ include: termInclude, orderBy: { name: 'asc' } }),
-      this.prisma.user.findMany({ where: { companyId: actor.companyId, isActive: true }, orderBy: { fullName: 'asc' } }),
-    ]);
+    const [company, currencies, countries, ports, incoterms, uoms, packaging, terms, users] =
+      await Promise.all([
+        this.prisma.company.findUniqueOrThrow({ where: { id: actor.companyId } }),
+        this.prisma.currency.findMany({ orderBy: { code: 'asc' } }),
+        this.prisma.country.findMany({ orderBy: { name: 'asc' } }),
+        this.prisma.port.findMany({ orderBy: [{ countryCode: 'asc' }, { name: 'asc' }] }),
+        this.prisma.incoterm.findMany(),
+        this.prisma.uom.findMany({ orderBy: { factorToBase: 'desc' } }),
+        this.prisma.packagingType.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+        this.prisma.paymentTerm.findMany({ include: termInclude, orderBy: { name: 'asc' } }),
+        this.prisma.user.findMany({
+          where: { companyId: actor.companyId, isActive: true },
+          orderBy: { fullName: 'asc' },
+        }),
+      ]);
     const incotermOrder = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'];
     return {
       baseCurrency: company.baseCurrency,
-      currencies: currencies.map((c) => ({ code: c.code, name: c.name, symbol: c.symbol, minorUnits: c.minorUnits, isActive: c.isActive })),
+      currencies: currencies.map((c) => ({
+        code: c.code,
+        name: c.name,
+        symbol: c.symbol,
+        minorUnits: c.minorUnits,
+        isActive: c.isActive,
+      })),
       countries: countries.map((c) => ({ code: c.code, name: c.name, region: c.region })),
-      ports: ports.map((p) => ({ id: p.id, locode: p.locode, name: p.name, countryCode: p.countryCode, type: p.type, isActive: p.isActive })),
+      ports: ports.map((p) => ({
+        id: p.id,
+        locode: p.locode,
+        name: p.name,
+        countryCode: p.countryCode,
+        type: p.type,
+        isActive: p.isActive,
+      })),
       incoterms: incoterms
         .sort((a, b) => incotermOrder.indexOf(a.code) - incotermOrder.indexOf(b.code))
         .map((i) => ({
@@ -156,9 +188,25 @@ export class SettingsService {
           sellerPaysMainCarriage: i.sellerPaysMainCarriage,
           sellerPaysInsurance: i.sellerPaysInsurance,
         })),
-      uoms: uoms.map((u) => ({ code: u.code, name: u.name, dimension: u.dimension, factorToBase: u.factorToBase.toFixed() })),
-      packagingTypes: packaging.map((p) => ({ id: p.id, code: p.code, name: p.name, nominalWeightKg: d(p.nominalWeightKg) })),
-      paymentTerms: terms.map((t) => ({ id: t.id, code: t.code, name: t.name, summary: termSummary(t), isActive: t.isActive })),
+      uoms: uoms.map((u) => ({
+        code: u.code,
+        name: u.name,
+        dimension: u.dimension,
+        factorToBase: u.factorToBase.toFixed(),
+      })),
+      packagingTypes: packaging.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        nominalWeightKg: d(p.nominalWeightKg),
+      })),
+      paymentTerms: terms.map((t) => ({
+        id: t.id,
+        code: t.code,
+        name: t.name,
+        summary: termSummary(t),
+        isActive: t.isActive,
+      })),
       users: users.map((u) => ref(u)!),
     };
   }
@@ -167,7 +215,13 @@ export class SettingsService {
 
   async currencies(): Promise<CurrencyDto[]> {
     const rows = await this.prisma.currency.findMany({ orderBy: { code: 'asc' } });
-    return rows.map((c) => ({ code: c.code, name: c.name, symbol: c.symbol, minorUnits: c.minorUnits, isActive: c.isActive }));
+    return rows.map((c) => ({
+      code: c.code,
+      name: c.name,
+      symbol: c.symbol,
+      minorUnits: c.minorUnits,
+      isActive: c.isActive,
+    }));
   }
 
   async upsertCurrency(actor: Actor, input: CurrencyInput): Promise<CurrencyDto> {
@@ -177,7 +231,13 @@ export class SettingsService {
         throw new BusinessRuleError('Minor units of an existing currency cannot change');
       }
       const c = await tx.currency.upsert({ where: { code: input.code }, create: input, update: input });
-      await this.audit.log(tx, actor, { entityType: 'currency', entityId: c.code, action: before ? 'update' : 'create', before, after: c });
+      await this.audit.log(tx, actor, {
+        entityType: 'currency',
+        entityId: c.code,
+        action: before ? 'update' : 'create',
+        before,
+        after: c,
+      });
       return { code: c.code, name: c.name, symbol: c.symbol, minorUnits: c.minorUnits, isActive: c.isActive };
     });
   }
@@ -185,7 +245,9 @@ export class SettingsService {
   async exchangeRates(filter: { currency?: string; from?: string; to?: string }): Promise<ExchangeRateDto[]> {
     const rows = await this.prisma.exchangeRate.findMany({
       where: {
-        ...(filter.currency ? { OR: [{ fromCurrency: filter.currency }, { toCurrency: filter.currency }] } : {}),
+        ...(filter.currency
+          ? { OR: [{ fromCurrency: filter.currency }, { toCurrency: filter.currency }] }
+          : {}),
         rateDate: {
           ...(filter.from ? { gte: isoToDate(filter.from) } : {}),
           ...(filter.to ? { lte: isoToDate(filter.to) } : {}),
@@ -226,7 +288,11 @@ export class SettingsService {
         entityId: row.id,
         action: before ? 'update' : 'create',
         before: before ? { rate: before.rate } : null,
-        after: { rateDate: input.rateDate, pair: `${input.fromCurrency}/${input.toCurrency}`, rate: row.rate },
+        after: {
+          rateDate: input.rateDate,
+          pair: `${input.fromCurrency}/${input.toCurrency}`,
+          rate: row.rate,
+        },
       });
       return rateDto(row);
     });
@@ -236,16 +302,38 @@ export class SettingsService {
 
   async ports(): Promise<PortDto[]> {
     const rows = await this.prisma.port.findMany({ orderBy: [{ countryCode: 'asc' }, { name: 'asc' }] });
-    return rows.map((p) => ({ id: p.id, locode: p.locode, name: p.name, countryCode: p.countryCode, type: p.type, isActive: p.isActive }));
+    return rows.map((p) => ({
+      id: p.id,
+      locode: p.locode,
+      name: p.name,
+      countryCode: p.countryCode,
+      type: p.type,
+      isActive: p.isActive,
+    }));
   }
 
   async savePort(actor: Actor, input: PortInput, id?: string): Promise<PortDto> {
     return this.prisma.tx(async (tx) => {
       const before = id ? await tx.port.findUnique({ where: { id } }) : null;
       if (id && !before) throw new NotFoundError('Port', id);
-      const p = id ? await tx.port.update({ where: { id }, data: input }) : await tx.port.create({ data: input });
-      await this.audit.log(tx, actor, { entityType: 'port', entityId: p.id, action: id ? 'update' : 'create', before, after: p });
-      return { id: p.id, locode: p.locode, name: p.name, countryCode: p.countryCode, type: p.type, isActive: p.isActive };
+      const p = id
+        ? await tx.port.update({ where: { id }, data: input })
+        : await tx.port.create({ data: input });
+      await this.audit.log(tx, actor, {
+        entityType: 'port',
+        entityId: p.id,
+        action: id ? 'update' : 'create',
+        before,
+        after: p,
+      });
+      return {
+        id: p.id,
+        locode: p.locode,
+        name: p.name,
+        countryCode: p.countryCode,
+        type: p.type,
+        isActive: p.isActive,
+      };
     });
   }
 
@@ -260,7 +348,12 @@ export class SettingsService {
    * Replaces a term's installments. Safe for existing orders: confirmed documents keep the schedule
    * snapshot they took at confirmation.
    */
-  async savePaymentTerm(actor: Actor, input: PaymentTermInput, id?: string, version?: number): Promise<PaymentTermDto> {
+  async savePaymentTerm(
+    actor: Actor,
+    input: PaymentTermInput,
+    id?: string,
+    version?: number,
+  ): Promise<PaymentTermDto> {
     validateInstallmentRules(input.installments);
     return this.prisma.tx(async (tx) => {
       const before = id ? await tx.paymentTerm.findUnique({ where: { id }, include: termInclude }) : null;
@@ -273,7 +366,12 @@ export class SettingsService {
         offsetDays: i.offsetDays,
         instrument: i.instrument ?? null,
       }));
-      const data = { code: input.code, name: input.name, description: input.description ?? null, isActive: input.isActive };
+      const data = {
+        code: input.code,
+        name: input.name,
+        description: input.description ?? null,
+        isActive: input.isActive,
+      };
       let term: TermRow;
       if (id) {
         await tx.paymentTermInstallment.deleteMany({ where: { paymentTermId: id } });
@@ -283,7 +381,10 @@ export class SettingsService {
           include: termInclude,
         });
       } else {
-        term = await tx.paymentTerm.create({ data: { ...data, installments: { create: installments } }, include: termInclude });
+        term = await tx.paymentTerm.create({
+          data: { ...data, installments: { create: installments } },
+          include: termInclude,
+        });
       }
       await this.audit.log(tx, actor, {
         entityType: 'payment_term',
@@ -298,7 +399,12 @@ export class SettingsService {
 
   // ───────────── Audit ─────────────
 
-  async auditLogs(filter: { entityType?: string; entityId?: string; userId?: string; take?: number }): Promise<AuditLogDto[]> {
+  async auditLogs(filter: {
+    entityType?: string;
+    entityId?: string;
+    userId?: string;
+    take?: number;
+  }): Promise<AuditLogDto[]> {
     const rows = await this.prisma.auditLog.findMany({
       where: { entityType: filter.entityType, entityId: filter.entityId, userId: filter.userId },
       include: { user: true },

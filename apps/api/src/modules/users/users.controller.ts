@@ -30,7 +30,10 @@ export class UsersController {
 
   @Post('users')
   @RequirePermission('users.manage')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(createUserSchema)) body: CreateUserInput): Promise<UserDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(createUserSchema)) body: CreateUserInput,
+  ): Promise<UserDto> {
     return this.users.create(actor, body);
   }
 

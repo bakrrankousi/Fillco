@@ -32,7 +32,14 @@ export class FxService {
     return resolveRate(records, from, to, onDate);
   }
 
-  async convert(amount: Decimal, from: string, to: string, onDate: IsoDate, minorUnits = 2, tx?: Tx): Promise<Decimal> {
+  async convert(
+    amount: Decimal,
+    from: string,
+    to: string,
+    onDate: IsoDate,
+    minorUnits = 2,
+    tx?: Tx,
+  ): Promise<Decimal> {
     return toBase(amount, await this.rate(from, to, onDate, tx), minorUnits);
   }
 }

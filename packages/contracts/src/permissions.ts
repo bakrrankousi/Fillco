@@ -55,7 +55,15 @@ export const PERMISSIONS = {
 export type Permission = keyof typeof PERMISSIONS;
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 
-export const ROLE_CODES = ['ADMIN', 'MANAGEMENT', 'SALES', 'PURCHASING', 'LOGISTICS', 'FINANCE', 'VIEWER'] as const;
+export const ROLE_CODES = [
+  'ADMIN',
+  'MANAGEMENT',
+  'SALES',
+  'PURCHASING',
+  'LOGISTICS',
+  'FINANCE',
+  'VIEWER',
+] as const;
 export type RoleCode = (typeof ROLE_CODES)[number];
 
 const VIEW_ALL: Permission[] = [

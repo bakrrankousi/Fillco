@@ -62,9 +62,11 @@ export class QuotationsService {
     const today = this.company.today(company);
     const packaging = await DocumentLinesService.packagingMap(this.prisma);
     const ports = new Map(
-      (await this.prisma.port.findMany({ where: { id: { in: [q.loadingPortId, q.destinationPortId].filter((x): x is string => !!x) } } })).map(
-        (p) => [p.id, p],
-      ),
+      (
+        await this.prisma.port.findMany({
+          where: { id: { in: [q.loadingPortId, q.destinationPortId].filter((x): x is string => !!x) } },
+        })
+      ).map((p) => [p.id, p]),
     );
     const showCost = canSeeCosts(actor);
     const revisions = await this.prisma.quotation.findMany({
@@ -127,13 +129,18 @@ export class QuotationsService {
     };
   }
 
-  async list(actor: Actor, q: QuotationFilter): Promise<{ page: Page<QuotationListItemDto>; rows: QuotationListItemDto[] }> {
+  async list(
+    actor: Actor,
+    q: QuotationFilter,
+  ): Promise<{ page: Page<QuotationListItemDto>; rows: QuotationListItemDto[] }> {
     const company = await this.company.get(actor.companyId);
     const today = this.company.today(company);
     const where: Prisma.QuotationWhereInput = {
       companyId: actor.companyId,
       ...viaCustomerScope(actor),
-      ...(q.status ? { status: q.status as Prisma.EnumQuotationStatusFilter['equals'] } : { status: { not: 'SUPERSEDED' } }),
+      ...(q.status
+        ? { status: q.status as Prisma.EnumQuotationStatusFilter['equals'] }
+        : { status: { not: 'SUPERSEDED' } }),
       ...(q.customerId ? { customerId: q.customerId } : {}),
       ...(q.q ? { OR: [{ number: contains(q.q) }, { customer: { companyName: contains(q.q) } }] } : {}),
     };
@@ -174,7 +181,10 @@ export class QuotationsService {
   }
 
   private async find(actor: Actor, id: string, tx: Tx = this.prisma): Promise<QuotationRow> {
-    const q = await tx.quotation.findFirst({ where: { id, companyId: actor.companyId, ...viaCustomerScope(actor) }, include });
+    const q = await tx.quotation.findFirst({
+      where: { id, companyId: actor.companyId, ...viaCustomerScope(actor) },
+      include,
+    });
     if (!q) throw new NotFoundError('Quotation', id);
     return q;
   }
@@ -186,9 +196,14 @@ export class QuotationsService {
   private async prepare(tx: Tx, actor: Actor, input: QuotationInput) {
     await this.customers.findVisible(actor, input.customerId, tx);
     if (input.validUntil < input.quotationDate) {
-      throw new BusinessRuleError('Validity must end on or after the quotation date', 'VALIDATION', undefined, {
-        validUntil: ['Must be on or after the quotation date'],
-      });
+      throw new BusinessRuleError(
+        'Validity must end on or after the quotation date',
+        'VALIDATION',
+        undefined,
+        {
+          validUntil: ['Must be on or after the quotation date'],
+        },
+      );
     }
     const doc = await this.lines.prepare(tx, input.currency, input.lines);
     const showCost = canSeeCosts(actor);
@@ -234,10 +249,22 @@ export class QuotationsService {
       const { header, lineData } = await this.prepare(tx, actor, input);
       const number = await this.sequences.next(tx, actor.companyId, 'QT', yearOf(input.quotationDate));
       const q = await tx.quotation.create({
-        data: { ...header, companyId: actor.companyId, number, createdById: actor.userId, updatedById: actor.userId, lines: { create: lineData } },
+        data: {
+          ...header,
+          companyId: actor.companyId,
+          number,
+          createdById: actor.userId,
+          updatedById: actor.userId,
+          lines: { create: lineData },
+        },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: q.id, action: 'create', after: q });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: q.id,
+        action: 'create',
+        after: q,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'quotation.created',
         entityType: 'quotation',
@@ -256,16 +283,30 @@ export class QuotationsService {
       const current = await this.find(actor, id, tx);
       assertVersion('Quotation', current.version, input.version);
       if (current.status !== 'DRAFT') {
-        throw new BusinessRuleError('Only draft quotations can be edited. Create a revision of a sent quotation.', 'NOT_DRAFT');
+        throw new BusinessRuleError(
+          'Only draft quotations can be edited. Create a revision of a sent quotation.',
+          'NOT_DRAFT',
+        );
       }
       const { header, lineData } = await this.prepare(tx, actor, input);
       await tx.quotationLine.deleteMany({ where: { quotationId: id } });
       const q = await tx.quotation.update({
         where: { id },
-        data: { ...header, updatedById: actor.userId, version: { increment: 1 }, lines: { create: lineData } },
+        data: {
+          ...header,
+          updatedById: actor.userId,
+          version: { increment: 1 },
+          lines: { create: lineData },
+        },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: id, action: 'update', before: current, after: q });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: id,
+        action: 'update',
+        before: current,
+        after: q,
+      });
       return q;
     });
     return this.toDto(actor, updated);
@@ -280,10 +321,14 @@ export class QuotationsService {
   ): Promise<QuotationDto> {
     const updated = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
-      if (!from.includes(current.status)) throw new BusinessRuleError(`Quotation is ${current.status}; cannot mark as ${to}`);
+      if (!from.includes(current.status))
+        throw new BusinessRuleError(`Quotation is ${current.status}; cannot mark as ${to}`);
       const company = await this.company.get(actor.companyId, tx);
       if (to !== 'REJECTED' && this.isExpired(current, this.company.today(company))) {
-        throw new BusinessRuleError('This quotation has expired. Create a revision with a new validity date.', 'EXPIRED');
+        throw new BusinessRuleError(
+          'This quotation has expired. Create a revision with a new validity date.',
+          'EXPIRED',
+        );
       }
       const q = await tx.quotation.update({
         where: { id },
@@ -295,7 +340,14 @@ export class QuotationsService {
         },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: id, action: to.toLowerCase(), before: { status: current.status }, after: { status: to }, reason: note });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: id,
+        action: to.toLowerCase(),
+        before: { status: current.status },
+        after: { status: to },
+        reason: note,
+      });
       await this.audit.activity(tx, actor, {
         eventType: `quotation.${to.toLowerCase()}`,
         entityType: 'quotation',
@@ -380,7 +432,12 @@ export class QuotationsService {
         },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: q.id, action: 'revise', details: { from: current.id, revision: q.revision } });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: q.id,
+        action: 'revise',
+        details: { from: current.id, revision: q.revision },
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'quotation.revised',
         entityType: 'quotation',
@@ -401,9 +458,18 @@ export class QuotationsService {
       if (current.status !== 'DRAFT') throw new BusinessRuleError('Only draft quotations can be deleted');
       await tx.quotation.delete({ where: { id } });
       if (current.previousRevisionId) {
-        await tx.quotation.update({ where: { id: current.previousRevisionId }, data: { status: 'SENT', version: { increment: 1 } } });
+        await tx.quotation.update({
+          where: { id: current.previousRevisionId },
+          data: { status: 'SENT', version: { increment: 1 } },
+        });
       }
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: id, action: 'delete', before: current, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: id,
+        action: 'delete',
+        before: current,
+        after: null,
+      });
     });
   }
 
@@ -412,18 +478,28 @@ export class QuotationsService {
     return this.prisma.tx(async (tx) => {
       const q = await this.find(actor, id, tx);
       if (!['SENT', 'ACCEPTED'].includes(q.status)) {
-        throw new BusinessRuleError(`Only sent or accepted quotations can be converted (this one is ${q.status})`);
+        throw new BusinessRuleError(
+          `Only sent or accepted quotations can be converted (this one is ${q.status})`,
+        );
       }
       const company = await this.company.get(actor.companyId, tx);
       if (this.isExpired(q, this.company.today(company)) && q.status !== 'ACCEPTED') {
-        throw new BusinessRuleError('This quotation has expired. Mark it accepted or create a revision first.', 'EXPIRED');
+        throw new BusinessRuleError(
+          'This quotation has expired. Mark it accepted or create a revision first.',
+          'EXPIRED',
+        );
       }
       const so = await this.salesOrders.createFromQuotation(tx, actor, q);
       await tx.quotation.update({
         where: { id },
         data: { status: 'CONVERTED', decidedAt: q.decidedAt ?? new Date(), version: { increment: 1 } },
       });
-      await this.audit.log(tx, actor, { entityType: 'quotation', entityId: id, action: 'convert', details: { salesOrderId: so.id, salesOrderNumber: so.number } });
+      await this.audit.log(tx, actor, {
+        entityType: 'quotation',
+        entityId: id,
+        action: 'convert',
+        details: { salesOrderId: so.id, salesOrderNumber: so.number },
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'quotation.converted',
         entityType: 'quotation',

@@ -1,4 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Res,
+} from '@nestjs/common';
 import {
   listQuerySchema,
   quotationDecisionSchema,
@@ -17,7 +29,10 @@ import { MONEY_FMT, sendExcel } from '../../common/list';
 import { ZodPipe } from '../../common/zod.pipe';
 import { QuotationFilter, QuotationsService } from './quotations.service';
 
-const query = listQuerySchema.extend({ status: z.string().optional(), customerId: z.string().uuid().optional() });
+const query = listQuerySchema.extend({
+  status: z.string().optional(),
+  customerId: z.string().uuid().optional(),
+});
 
 @Controller('quotations')
 export class QuotationsController {
@@ -32,17 +47,24 @@ export class QuotationsController {
   ): Promise<Page<QuotationListItemDto> | void> {
     const result = await this.quotations.list(actor, q);
     if (q.format !== 'xlsx') return result.page;
-    await sendExcel<QuotationListItemDto>(res, actor, 'quotations', 'Quotations', [
-      { header: 'Number', value: (r) => r.number, width: 16 },
-      { header: 'Rev', value: (r) => r.revision, width: 5 },
-      { header: 'Customer', value: (r) => r.customer.name, width: 32 },
-      { header: 'Date', value: (r) => r.quotationDate, numFmt: 'yyyy-mm-dd', width: 12 },
-      { header: 'Valid until', value: (r) => r.validUntil, numFmt: 'yyyy-mm-dd', width: 12 },
-      { header: 'Currency', value: (r) => r.currency, width: 9 },
-      { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
-      { header: 'Status', value: (r) => (r.isExpired ? 'EXPIRED' : r.status) },
-      { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
-    ], result.rows);
+    await sendExcel<QuotationListItemDto>(
+      res,
+      actor,
+      'quotations',
+      'Quotations',
+      [
+        { header: 'Number', value: (r) => r.number, width: 16 },
+        { header: 'Rev', value: (r) => r.revision, width: 5 },
+        { header: 'Customer', value: (r) => r.customer.name, width: 32 },
+        { header: 'Date', value: (r) => r.quotationDate, numFmt: 'yyyy-mm-dd', width: 12 },
+        { header: 'Valid until', value: (r) => r.validUntil, numFmt: 'yyyy-mm-dd', width: 12 },
+        { header: 'Currency', value: (r) => r.currency, width: 9 },
+        { header: 'Total', value: (r) => r.grandTotal, numFmt: MONEY_FMT },
+        { header: 'Status', value: (r) => (r.isExpired ? 'EXPIRED' : r.status) },
+        { header: 'Salesperson', value: (r) => r.salesperson, width: 22 },
+      ],
+      result.rows,
+    );
   }
 
   @Get(':id')
@@ -53,7 +75,10 @@ export class QuotationsController {
 
   @Post()
   @RequirePermission('quotation.manage')
-  create(@CurrentActor() actor: Actor, @Body(new ZodPipe(quotationSchema)) body: QuotationInput): Promise<QuotationDto> {
+  create(
+    @CurrentActor() actor: Actor,
+    @Body(new ZodPipe(quotationSchema)) body: QuotationInput,
+  ): Promise<QuotationDto> {
     return this.quotations.create(actor, body);
   }
 
@@ -108,7 +133,10 @@ export class QuotationsController {
 
   @Post(':id/convert')
   @RequirePermission('sales_order.manage')
-  convert(@CurrentActor() actor: Actor, @Param('id', ParseUUIDPipe) id: string): Promise<{ salesOrderId: string }> {
+  convert(
+    @CurrentActor() actor: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ salesOrderId: string }> {
     return this.quotations.convert(actor, id);
   }
 }

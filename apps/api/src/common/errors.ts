@@ -26,7 +26,12 @@ export class ConflictError extends AppError {
 
 /** The request is well-formed but breaks a business rule. */
 export class BusinessRuleError extends AppError {
-  constructor(message: string, code = 'BUSINESS_RULE', data?: unknown, fieldErrors?: Record<string, string[]>) {
+  constructor(
+    message: string,
+    code = 'BUSINESS_RULE',
+    data?: unknown,
+    fieldErrors?: Record<string, string[]>,
+  ) {
     super(422, code, message, data, fieldErrors);
   }
 }

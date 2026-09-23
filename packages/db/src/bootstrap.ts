@@ -40,7 +40,10 @@ export function hashPassword(password: string): Promise<string> {
  * Idempotently loads reference data, system roles, the company and the first admin user.
  * Safe to run on every deployment: existing rows are updated, never duplicated or deleted.
  */
-export async function bootstrap(prisma: PrismaClient, options: BootstrapOptions): Promise<{ companyId: string }> {
+export async function bootstrap(
+  prisma: PrismaClient,
+  options: BootstrapOptions,
+): Promise<{ companyId: string }> {
   for (const c of CURRENCIES) {
     await prisma.currency.upsert({
       where: { code: c.code },
@@ -49,7 +52,11 @@ export async function bootstrap(prisma: PrismaClient, options: BootstrapOptions)
     });
   }
   for (const c of COUNTRIES) {
-    await prisma.country.upsert({ where: { code: c.code }, create: c, update: { name: c.name, region: c.region } });
+    await prisma.country.upsert({
+      where: { code: c.code },
+      create: c,
+      update: { name: c.name, region: c.region },
+    });
   }
   for (const p of PORTS) {
     await prisma.port.upsert({ where: { locode: p.locode }, create: p, update: { name: p.name } });
@@ -61,13 +68,21 @@ export async function bootstrap(prisma: PrismaClient, options: BootstrapOptions)
       sellerPaysInsurance: i.ins,
       seaOnly: i.sea,
     };
-    await prisma.incoterm.upsert({ where: { code: i.code }, create: { code: i.code, ...data }, update: data });
+    await prisma.incoterm.upsert({
+      where: { code: i.code },
+      create: { code: i.code, ...data },
+      update: data,
+    });
   }
   for (const u of UOMS) {
     await prisma.uom.upsert({ where: { code: u.code }, create: { ...u }, update: { name: u.name } });
   }
   for (const p of PACKAGING_TYPES) {
-    await prisma.packagingType.upsert({ where: { code: p.code }, create: { ...p }, update: { name: p.name } });
+    await prisma.packagingType.upsert({
+      where: { code: p.code },
+      create: { ...p },
+      update: { name: p.name },
+    });
   }
   for (const t of PAYMENT_TERMS) {
     validateInstallmentRules(t.installments);
@@ -149,7 +164,9 @@ export async function bootstrap(prisma: PrismaClient, options: BootstrapOptions)
       update: { name: r.name, description: r.description, isSystem: true },
     });
     await prisma.$transaction([
-      prisma.rolePermission.deleteMany({ where: { roleId: role.id, permission: { notIn: [...r.permissions] } } }),
+      prisma.rolePermission.deleteMany({
+        where: { roleId: role.id, permission: { notIn: [...r.permissions] } },
+      }),
       prisma.rolePermission.createMany({
         data: r.permissions.map((permission) => ({ roleId: role.id, permission })),
         skipDuplicates: true,

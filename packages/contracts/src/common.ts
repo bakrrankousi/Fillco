@@ -7,9 +7,12 @@ export const decimalString = (opts: { maxDecimals?: number; min?: number; allowN
   return z
     .union([z.string(), z.number()])
     .transform((v) => (typeof v === 'number' ? String(v) : v.trim()))
-    .refine((v) => new RegExp(`^${opts.allowNegative ? '-?' : ''}\\d{1,14}(\\.\\d{1,${maxDecimals}})?$`).test(v), {
-      message: `Enter a number${opts.allowNegative ? '' : ' ≥ 0'} with at most ${maxDecimals} decimals`,
-    })
+    .refine(
+      (v) => new RegExp(`^${opts.allowNegative ? '-?' : ''}\\d{1,14}(\\.\\d{1,${maxDecimals}})?$`).test(v),
+      {
+        message: `Enter a number${opts.allowNegative ? '' : ' ≥ 0'} with at most ${maxDecimals} decimals`,
+      },
+    )
     .refine((v) => opts.min === undefined || Number(v) >= opts.min, {
       message: `Must be at least ${opts.min}`,
     });

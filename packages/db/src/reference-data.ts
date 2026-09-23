@@ -128,23 +128,37 @@ export const PACKAGING_TYPES = [
 type Installment = {
   percent: string;
   triggerEvent:
-    | 'ORDER_CONFIRMATION'
-    | 'BEFORE_LOADING'
-    | 'INVOICE_DATE'
-    | 'BL_DATE'
-    | 'ETA'
-    | 'ARRIVAL'
-    | 'DELIVERY';
+    'ORDER_CONFIRMATION' | 'BEFORE_LOADING' | 'INVOICE_DATE' | 'BL_DATE' | 'ETA' | 'ARRIVAL' | 'DELIVERY';
   offsetDays: number;
   instrument?: 'TT' | 'CAD' | 'LC' | 'CASH' | 'CHEQUE';
 };
 
 export const PAYMENT_TERMS: { code: string; name: string; installments: Installment[] }[] = [
-  { code: 'CIA', name: 'Cash in advance', installments: [{ percent: '100', triggerEvent: 'ORDER_CONFIRMATION', offsetDays: 0, instrument: 'TT' }] },
-  { code: 'NET30', name: '30 days from invoice', installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 30, instrument: 'TT' }] },
-  { code: 'NET60', name: '60 days from invoice', installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 60, instrument: 'TT' }] },
-  { code: 'NET90', name: '90 days from invoice', installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 90, instrument: 'TT' }] },
-  { code: 'NET120', name: '120 days from invoice', installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 120, instrument: 'TT' }] },
+  {
+    code: 'CIA',
+    name: 'Cash in advance',
+    installments: [{ percent: '100', triggerEvent: 'ORDER_CONFIRMATION', offsetDays: 0, instrument: 'TT' }],
+  },
+  {
+    code: 'NET30',
+    name: '30 days from invoice',
+    installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 30, instrument: 'TT' }],
+  },
+  {
+    code: 'NET60',
+    name: '60 days from invoice',
+    installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 60, instrument: 'TT' }],
+  },
+  {
+    code: 'NET90',
+    name: '90 days from invoice',
+    installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 90, instrument: 'TT' }],
+  },
+  {
+    code: 'NET120',
+    name: '120 days from invoice',
+    installments: [{ percent: '100', triggerEvent: 'INVOICE_DATE', offsetDays: 120, instrument: 'TT' }],
+  },
   {
     code: 'ADV30-BL70',
     name: '30% advance, 70% against BL',
@@ -161,9 +175,21 @@ export const PAYMENT_TERMS: { code: string; name: string; installments: Installm
       { percent: '80', triggerEvent: 'BL_DATE', offsetDays: 60, instrument: 'TT' },
     ],
   },
-  { code: 'CAD', name: 'Cash against documents', installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 7, instrument: 'CAD' }] },
-  { code: 'LC-SIGHT', name: 'Irrevocable L/C at sight', installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 10, instrument: 'LC' }] },
-  { code: 'LC-90', name: 'L/C 90 days from BL', installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 90, instrument: 'LC' }] },
+  {
+    code: 'CAD',
+    name: 'Cash against documents',
+    installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 7, instrument: 'CAD' }],
+  },
+  {
+    code: 'LC-SIGHT',
+    name: 'Irrevocable L/C at sight',
+    installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 10, instrument: 'LC' }],
+  },
+  {
+    code: 'LC-90',
+    name: 'L/C 90 days from BL',
+    installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 90, instrument: 'LC' }],
+  },
   {
     code: 'SUP-30-70-LOAD',
     name: 'Supplier: 30% deposit, 70% before loading',
@@ -172,13 +198,24 @@ export const PAYMENT_TERMS: { code: string; name: string; installments: Installm
       { percent: '70', triggerEvent: 'BEFORE_LOADING', offsetDays: 0, instrument: 'TT' },
     ],
   },
-  { code: 'SUP-BL-COPY', name: 'Supplier: 100% against copy of BL', installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 3, instrument: 'TT' }] },
+  {
+    code: 'SUP-BL-COPY',
+    name: 'Supplier: 100% against copy of BL',
+    installments: [{ percent: '100', triggerEvent: 'BL_DATE', offsetDays: 3, instrument: 'TT' }],
+  },
 ];
 
 /** Textile specification attributes. More can be added in Settings → Product attributes. */
 export const ATTRIBUTES = [
   { code: 'denier', label: 'Denier', dataType: 'NUMBER', unit: 'D', minValue: '0.1', maxValue: '200' },
-  { code: 'cut_length_mm', label: 'Cut length', dataType: 'NUMBER', unit: 'mm', minValue: '1', maxValue: '200' },
+  {
+    code: 'cut_length_mm',
+    label: 'Cut length',
+    dataType: 'NUMBER',
+    unit: 'mm',
+    minValue: '1',
+    maxValue: '200',
+  },
   {
     code: 'cross_section',
     label: 'Cross-section',
@@ -189,7 +226,13 @@ export const ATTRIBUTES = [
       { value: 'HOLLOW_CONJUGATED', label: 'Hollow Conjugated' },
     ],
   },
-  { code: 'siliconized', label: 'Siliconized', dataType: 'BOOLEAN', trueLabel: 'Siliconized', falseLabel: 'Non-siliconized' },
+  {
+    code: 'siliconized',
+    label: 'Siliconized',
+    dataType: 'BOOLEAN',
+    trueLabel: 'Siliconized',
+    falseLabel: 'Non-siliconized',
+  },
   {
     code: 'color',
     label: 'Color',
@@ -221,8 +264,22 @@ export const ATTRIBUTES = [
       { value: 'B', label: 'B Grade' },
     ],
   },
-  { code: 'low_melt_pct', label: 'Low melt share', dataType: 'NUMBER', unit: '%', minValue: '0', maxValue: '100' },
-  { code: 'melt_point_c', label: 'Melting point', dataType: 'NUMBER', unit: '°C', minValue: '60', maxValue: '260' },
+  {
+    code: 'low_melt_pct',
+    label: 'Low melt share',
+    dataType: 'NUMBER',
+    unit: '%',
+    minValue: '0',
+    maxValue: '100',
+  },
+  {
+    code: 'melt_point_c',
+    label: 'Melting point',
+    dataType: 'NUMBER',
+    unit: '°C',
+    minValue: '60',
+    maxValue: '260',
+  },
   {
     code: 'yarn_type',
     label: 'Yarn type',
@@ -250,48 +307,52 @@ export const ATTRIBUTES = [
 type Rule = { code: string; required?: boolean; variantDefining?: boolean };
 
 /** Category tree with specification rules. Children inherit their parents' rules. */
-export const CATEGORIES: { code: string; name: string; parent?: string; sortOrder: number; rules: Rule[] }[] = [
-  {
-    code: 'FIBER',
-    name: 'Fiber',
-    sortOrder: 1,
-    rules: [
-      { code: 'denier', required: true },
-      { code: 'cut_length_mm', required: true },
-      { code: 'color', required: true },
-      { code: 'material' },
-      { code: 'grade' },
-    ],
-  },
-  {
-    code: 'PSF',
-    name: 'Polyester Staple Fiber',
-    parent: 'FIBER',
-    sortOrder: 1,
-    rules: [{ code: 'cross_section', required: true }, { code: 'siliconized', required: true }],
-  },
-  { code: 'MICRO', name: 'Microfiber', parent: 'FIBER', sortOrder: 2, rules: [{ code: 'siliconized' }] },
-  {
-    code: 'LOWMELT',
-    name: 'Low Melt Fiber',
-    parent: 'FIBER',
-    sortOrder: 3,
-    rules: [{ code: 'melt_point_c', required: true }, { code: 'low_melt_pct' }],
-  },
-  {
-    code: 'YARN',
-    name: 'Yarn',
-    sortOrder: 2,
-    rules: [
-      { code: 'yarn_type', required: true },
-      { code: 'denier', required: true },
-      { code: 'filaments', required: true },
-      { code: 'luster' },
-      { code: 'color', required: true },
-      { code: 'material' },
-      { code: 'grade' },
-    ],
-  },
-  { code: 'PES-YARN', name: 'Polyester Yarn', parent: 'YARN', sortOrder: 1, rules: [] },
-  { code: 'OTHER', name: 'Other textile raw materials', sortOrder: 9, rules: [] },
-];
+export const CATEGORIES: { code: string; name: string; parent?: string; sortOrder: number; rules: Rule[] }[] =
+  [
+    {
+      code: 'FIBER',
+      name: 'Fiber',
+      sortOrder: 1,
+      rules: [
+        { code: 'denier', required: true },
+        { code: 'cut_length_mm', required: true },
+        { code: 'color', required: true },
+        { code: 'material' },
+        { code: 'grade' },
+      ],
+    },
+    {
+      code: 'PSF',
+      name: 'Polyester Staple Fiber',
+      parent: 'FIBER',
+      sortOrder: 1,
+      rules: [
+        { code: 'cross_section', required: true },
+        { code: 'siliconized', required: true },
+      ],
+    },
+    { code: 'MICRO', name: 'Microfiber', parent: 'FIBER', sortOrder: 2, rules: [{ code: 'siliconized' }] },
+    {
+      code: 'LOWMELT',
+      name: 'Low Melt Fiber',
+      parent: 'FIBER',
+      sortOrder: 3,
+      rules: [{ code: 'melt_point_c', required: true }, { code: 'low_melt_pct' }],
+    },
+    {
+      code: 'YARN',
+      name: 'Yarn',
+      sortOrder: 2,
+      rules: [
+        { code: 'yarn_type', required: true },
+        { code: 'denier', required: true },
+        { code: 'filaments', required: true },
+        { code: 'luster' },
+        { code: 'color', required: true },
+        { code: 'material' },
+        { code: 'grade' },
+      ],
+    },
+    { code: 'PES-YARN', name: 'Polyester Yarn', parent: 'YARN', sortOrder: 1, rules: [] },
+    { code: 'OTHER', name: 'Other textile raw materials', sortOrder: 9, rules: [] },
+  ];

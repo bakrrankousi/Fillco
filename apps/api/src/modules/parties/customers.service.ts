@@ -105,7 +105,10 @@ export class CustomersService {
     };
   }
 
-  async list(actor: Actor, q: CustomerFilter): Promise<{ page: Page<CustomerListItemDto>; rows: CustomerListItemDto[] }> {
+  async list(
+    actor: Actor,
+    q: CustomerFilter,
+  ): Promise<{ page: Page<CustomerListItemDto>; rows: CustomerListItemDto[] }> {
     const where: Prisma.CustomerWhereInput = {
       ...customerScope(actor),
       ...(q.status ? { status: q.status as Prisma.EnumCustomerStatusFilter['equals'] } : {}),
@@ -119,7 +122,11 @@ export class CustomersService {
               { email: contains(q.q) },
               { phone: contains(q.q) },
               { city: contains(q.q) },
-              { contacts: { some: { OR: [{ name: contains(q.q) }, { email: contains(q.q) }, { phone: contains(q.q) }] } } },
+              {
+                contacts: {
+                  some: { OR: [{ name: contains(q.q) }, { email: contains(q.q) }, { phone: contains(q.q) }] },
+                },
+              },
             ],
           }
         : {}),
@@ -159,29 +166,43 @@ export class CustomersService {
     return this.toDto(await this.findVisible(actor, id));
   }
 
-  private assertCreditFields(actor: Actor, input: { creditLimit?: string; creditLimitCurrency?: string; status?: string }, current?: CustomerRow) {
+  private assertCreditFields(
+    actor: Actor,
+    input: { creditLimit?: string; creditLimitCurrency?: string; status?: string },
+    current?: CustomerRow,
+  ) {
     const limitChanged =
-      input.creditLimit !== undefined && (current ? !current.creditLimit.eq(input.creditLimit) : Number(input.creditLimit) !== 0);
+      input.creditLimit !== undefined &&
+      (current ? !current.creditLimit.eq(input.creditLimit) : Number(input.creditLimit) !== 0);
     const limitCurrencyChanged =
-      current && input.creditLimitCurrency !== undefined && input.creditLimitCurrency !== current.creditLimitCurrency;
+      current &&
+      input.creditLimitCurrency !== undefined &&
+      input.creditLimitCurrency !== current.creditLimitCurrency;
     if ((limitChanged || limitCurrencyChanged) && !can(actor, 'customer.credit_limit.edit')) {
       throw new ForbiddenError('Only credit controllers can set or change credit limits');
     }
     if (input.status && input.status !== current?.status) {
-      const touchesCredit = CREDIT_STATUSES.has(input.status) || (current && CREDIT_STATUSES.has(current.status));
+      const touchesCredit =
+        CREDIT_STATUSES.has(input.status) || (current && CREDIT_STATUSES.has(current.status));
       if (touchesCredit && !can(actor, 'customer.credit_limit.edit')) {
         throw new ForbiddenError('Only credit controllers can put customers on hold or block them');
       }
       const touchesArchive = input.status === 'INACTIVE' || current?.status === 'INACTIVE';
-      if (touchesArchive && !can(actor, 'customer.archive')) throw new ForbiddenError('You cannot archive customers');
+      if (touchesArchive && !can(actor, 'customer.archive'))
+        throw new ForbiddenError('You cannot archive customers');
     }
   }
 
-  private resolveSalesperson(actor: Actor, requested: string | null | undefined, current?: string | null): string | null | undefined {
+  private resolveSalesperson(
+    actor: Actor,
+    requested: string | null | undefined,
+    current?: string | null,
+  ): string | null | undefined {
     if (can(actor, 'customer.view_all')) return requested;
     // Scoped salespeople own what they create and cannot hand customers to someone else.
     if (!current) return actor.userId;
-    if (requested !== undefined && requested !== current) throw new ForbiddenError('You cannot reassign customers');
+    if (requested !== undefined && requested !== current)
+      throw new ForbiddenError('You cannot reassign customers');
     return undefined;
   }
 
@@ -213,7 +234,10 @@ export class CustomersService {
         customerId: c.id,
         summary: `Customer ${c.code} ${c.companyName} created`,
       });
-      await this.audit.outbox(tx, 'customer.created', 'customer', c.id, { code: c.code, companyName: c.companyName });
+      await this.audit.outbox(tx, 'customer.created', 'customer', c.id, {
+        code: c.code,
+        companyName: c.companyName,
+      });
       return c;
     });
     return this.toDto(created);
@@ -231,7 +255,13 @@ export class CustomersService {
         data: { ...fields, salespersonId, updatedById: actor.userId, version: { increment: 1 } },
         include: detailInclude,
       });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: id, action: 'update', before: current, after: c });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: id,
+        action: 'update',
+        before: current,
+        after: c,
+      });
       if (current.status !== c.status || !current.creditLimit.eq(c.creditLimit)) {
         await this.audit.activity(tx, actor, {
           eventType: 'customer.credit_changed',
@@ -256,21 +286,39 @@ export class CustomersService {
   async addContact(actor: Actor, customerId: string, input: ContactInput): Promise<CustomerDto> {
     await this.findVisible(actor, customerId);
     await this.prisma.tx(async (tx) => {
-      if (input.isPrimary) await tx.customerContact.updateMany({ where: { customerId }, data: { isPrimary: false } });
+      if (input.isPrimary)
+        await tx.customerContact.updateMany({ where: { customerId }, data: { isPrimary: false } });
       const c = await tx.customerContact.create({ data: { ...input, customerId } });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'contact_added', after: c });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'contact_added',
+        after: c,
+      });
     });
     return this.get(actor, customerId);
   }
 
-  async updateContact(actor: Actor, customerId: string, contactId: string, input: ContactInput): Promise<CustomerDto> {
+  async updateContact(
+    actor: Actor,
+    customerId: string,
+    contactId: string,
+    input: ContactInput,
+  ): Promise<CustomerDto> {
     await this.findVisible(actor, customerId);
     await this.prisma.tx(async (tx) => {
       const before = await tx.customerContact.findFirst({ where: { id: contactId, customerId } });
       if (!before) throw new NotFoundError('Contact', contactId);
-      if (input.isPrimary) await tx.customerContact.updateMany({ where: { customerId }, data: { isPrimary: false } });
+      if (input.isPrimary)
+        await tx.customerContact.updateMany({ where: { customerId }, data: { isPrimary: false } });
       const after = await tx.customerContact.update({ where: { id: contactId }, data: input });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'contact_updated', before, after });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'contact_updated',
+        before,
+        after,
+      });
     });
     return this.get(actor, customerId);
   }
@@ -281,7 +329,13 @@ export class CustomersService {
       const before = await tx.customerContact.findFirst({ where: { id: contactId, customerId } });
       if (!before) throw new NotFoundError('Contact', contactId);
       await tx.customerContact.delete({ where: { id: contactId } });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'contact_removed', before, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'contact_removed',
+        before,
+        after: null,
+      });
     });
     return this.get(actor, customerId);
   }
@@ -289,34 +343,66 @@ export class CustomersService {
   async addAddress(actor: Actor, customerId: string, input: AddressInput): Promise<CustomerDto> {
     await this.findVisible(actor, customerId);
     await this.prisma.tx(async (tx) => {
-      if (input.isDefault) await tx.customerAddress.updateMany({ where: { customerId, type: input.type }, data: { isDefault: false } });
+      if (input.isDefault)
+        await tx.customerAddress.updateMany({
+          where: { customerId, type: input.type },
+          data: { isDefault: false },
+        });
       const a = await tx.customerAddress.create({ data: { ...input, customerId } });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'address_added', after: a });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'address_added',
+        after: a,
+      });
     });
     return this.get(actor, customerId);
   }
 
-  async updateAddress(actor: Actor, customerId: string, addressId: string, input: AddressInput): Promise<CustomerDto> {
+  async updateAddress(
+    actor: Actor,
+    customerId: string,
+    addressId: string,
+    input: AddressInput,
+  ): Promise<CustomerDto> {
     await this.findVisible(actor, customerId);
     await this.prisma.tx(async (tx) => {
       const before = await tx.customerAddress.findFirst({ where: { id: addressId, customerId } });
       if (!before) throw new NotFoundError('Address', addressId);
-      if (input.isDefault) await tx.customerAddress.updateMany({ where: { customerId, type: input.type }, data: { isDefault: false } });
+      if (input.isDefault)
+        await tx.customerAddress.updateMany({
+          where: { customerId, type: input.type },
+          data: { isDefault: false },
+        });
       const after = await tx.customerAddress.update({ where: { id: addressId }, data: input });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'address_updated', before, after });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'address_updated',
+        before,
+        after,
+      });
     });
     return this.get(actor, customerId);
   }
 
   async deleteAddress(actor: Actor, customerId: string, addressId: string): Promise<CustomerDto> {
     await this.findVisible(actor, customerId);
-    const used = await this.prisma.salesOrder.count({ where: { OR: [{ shippingAddressId: addressId }, { billingAddressId: addressId }] } });
+    const used = await this.prisma.salesOrder.count({
+      where: { OR: [{ shippingAddressId: addressId }, { billingAddressId: addressId }] },
+    });
     if (used > 0) throw new BusinessRuleError('This address is used on sales orders and cannot be removed');
     await this.prisma.tx(async (tx) => {
       const before = await tx.customerAddress.findFirst({ where: { id: addressId, customerId } });
       if (!before) throw new NotFoundError('Address', addressId);
       await tx.customerAddress.delete({ where: { id: addressId } });
-      await this.audit.log(tx, actor, { entityType: 'customer', entityId: customerId, action: 'address_removed', before, after: null });
+      await this.audit.log(tx, actor, {
+        entityType: 'customer',
+        entityId: customerId,
+        action: 'address_removed',
+        before,
+        after: null,
+      });
     });
     return this.get(actor, customerId);
   }
@@ -324,7 +410,10 @@ export class CustomersService {
 
 /** Exactly one primary contact: the first one flagged, otherwise the first one. */
 export function normalizePrimary<T extends { isPrimary: boolean }>(items: T[]): T[] {
-  const primary = Math.max(items.findIndex((i) => i.isPrimary), 0);
+  const primary = Math.max(
+    items.findIndex((i) => i.isPrimary),
+    0,
+  );
   return items.map((i, idx) => ({ ...i, isPrimary: idx === primary }));
 }
 

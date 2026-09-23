@@ -83,12 +83,20 @@ export class PurchaseOrdersService {
     private readonly lines: DocumentLinesService,
   ) {}
 
-  private isDelayed(po: { status: PurchaseOrderStatus; expectedReadyDate: Date | null; confirmedReadyDate: Date | null }, today: string): boolean {
+  private isDelayed(
+    po: { status: PurchaseOrderStatus; expectedReadyDate: Date | null; confirmedReadyDate: Date | null },
+    today: string,
+  ): boolean {
     const ready = po.confirmedReadyDate ?? po.expectedReadyDate;
     return ACTIVE_FOR_DELAY.has(po.status) && !!ready && dayReq(ready) < today;
   }
 
-  private allocationDto(actor: Actor, a: PurchaseOrderRow['lines'][number]['allocations'][number], po: PurchaseOrderRow, line: PurchaseOrderRow['lines'][number]): AllocationDto {
+  private allocationDto(
+    actor: Actor,
+    a: PurchaseOrderRow['lines'][number]['allocations'][number],
+    po: PurchaseOrderRow,
+    line: PurchaseOrderRow['lines'][number],
+  ): AllocationDto {
     const so = a.salesOrderLine.salesOrder;
     return {
       id: a.id,
@@ -105,7 +113,10 @@ export class PurchaseOrdersService {
       qtyBase: a.qtyBase.toFixed(),
       isSubstitute: a.isSubstitute,
       substituteNote: a.substituteNote,
-      unitCostBase: canSeeCosts(actor) && !line.qtyBase.isZero() ? line.lineTotal.div(line.qtyBase).toDecimalPlaces(6).toFixed() : null,
+      unitCostBase:
+        canSeeCosts(actor) && !line.qtyBase.isZero()
+          ? line.lineTotal.div(line.qtyBase).toDecimalPlaces(6).toFixed()
+          : null,
       poCurrency: po.currency,
       createdAt: tsReq(a.createdAt),
     };
@@ -118,7 +129,11 @@ export class PurchaseOrdersService {
       take: 200,
     });
     const users = new Map(
-      (await this.prisma.user.findMany({ where: { id: { in: events.map((e) => e.userId).filter((x): x is string => !!x) } } })).map((u) => [u.id, u]),
+      (
+        await this.prisma.user.findMany({
+          where: { id: { in: events.map((e) => e.userId).filter((x): x is string => !!x) } },
+        })
+      ).map((u) => [u.id, u]),
     );
     return events.map((e) => ({
       id: e.id,
@@ -136,7 +151,11 @@ export class PurchaseOrdersService {
     const today = this.company.today(company);
     const packaging = await DocumentLinesService.packagingMap(this.prisma);
     const ports = new Map(
-      (await this.prisma.port.findMany({ where: { id: { in: [po.loadingPortId, po.destinationPortId].filter((x): x is string => !!x) } } })).map((p) => [p.id, p]),
+      (
+        await this.prisma.port.findMany({
+          where: { id: { in: [po.loadingPortId, po.destinationPortId].filter((x): x is string => !!x) } },
+        })
+      ).map((p) => [p.id, p]),
     );
     const showCost = canSeeCosts(actor);
     // Sales staff may see which customers a PO serves only for customers they can see.
@@ -160,12 +179,23 @@ export class PurchaseOrdersService {
     for (const l of po.lines)
       for (const a of l.allocations) {
         const so = a.salesOrderLine.salesOrder;
-        if (visibleCustomer(so.customer)) salesOrders.set(so.id, { id: so.id, code: so.number, name: so.number, customer: refReq(so.customer) });
+        if (visibleCustomer(so.customer))
+          salesOrders.set(so.id, {
+            id: so.id,
+            code: so.number,
+            name: so.number,
+            customer: refReq(so.customer),
+          });
       }
     const milestoneMap = new Map(po.milestones.map((m) => [m.milestone, m]));
     const milestones: MilestoneDto[] = PO_MILESTONES.map((code) => {
       const m = milestoneMap.get(code);
-      return { milestone: code, plannedDate: day(m?.plannedDate), actualDate: day(m?.actualDate), notes: m?.notes ?? null };
+      return {
+        milestone: code,
+        plannedDate: day(m?.plannedDate),
+        actualDate: day(m?.actualDate),
+        notes: m?.notes ?? null,
+      };
     });
 
     return {
@@ -219,12 +249,17 @@ export class PurchaseOrdersService {
     };
   }
 
-  async list(actor: Actor, q: PurchaseOrderFilter): Promise<{ page: Page<PurchaseOrderListItemDto>; rows: PurchaseOrderListItemDto[] }> {
+  async list(
+    actor: Actor,
+    q: PurchaseOrderFilter,
+  ): Promise<{ page: Page<PurchaseOrderListItemDto>; rows: PurchaseOrderListItemDto[] }> {
     const company = await this.company.get(actor.companyId);
     const today = this.company.today(company);
     const where: Prisma.PurchaseOrderWhereInput = {
       companyId: actor.companyId,
-      ...(q.status ? { status: { in: q.status.split(',') as Prisma.EnumPurchaseOrderStatusFilter['in'] } } : {}),
+      ...(q.status
+        ? { status: { in: q.status.split(',') as Prisma.EnumPurchaseOrderStatusFilter['in'] } }
+        : {}),
       ...(q.supplierId ? { supplierId: q.supplierId } : {}),
       ...(q.delayed === 'true'
         ? {
@@ -256,7 +291,13 @@ export class PurchaseOrdersService {
         include: {
           supplier: true,
           buyer: true,
-          lines: { include: { allocations: { include: { salesOrderLine: { include: { salesOrder: { include: { customer: true } } } } } } } },
+          lines: {
+            include: {
+              allocations: {
+                include: { salesOrderLine: { include: { salesOrder: { include: { customer: true } } } } },
+              },
+            },
+          },
         },
         orderBy: orderBy(
           q.sort,
@@ -319,9 +360,12 @@ export class PurchaseOrdersService {
   // ───────────── Drafts ─────────────
 
   private async header(tx: Tx, actor: Actor, input: PurchaseOrderInput | PurchaseFromSalesInput) {
-    const supplier = await tx.supplier.findFirst({ where: { id: input.supplierId, companyId: actor.companyId } });
+    const supplier = await tx.supplier.findFirst({
+      where: { id: input.supplierId, companyId: actor.companyId },
+    });
     if (!supplier) throw new NotFoundError('Supplier', input.supplierId);
-    if (supplier.status !== 'ACTIVE') throw new BusinessRuleError(`Supplier ${supplier.companyName} is ${supplier.status}`);
+    if (supplier.status !== 'ACTIVE')
+      throw new BusinessRuleError(`Supplier ${supplier.companyName} is ${supplier.status}`);
     const company = await this.company.get(actor.companyId, tx);
     const fxRate = await this.fx.rate(input.currency, company.baseCurrency, input.poDate, tx);
     return {
@@ -374,14 +418,21 @@ export class PurchaseOrdersService {
               unitPrice: l.unitPrice,
               discountPct: l.discountPct,
               lineTotal: l.lineTotal,
-              expectedReadyDate: input.lines[i]?.expectedReadyDate ? isoToDate(input.lines[i]!.expectedReadyDate!) : null,
+              expectedReadyDate: input.lines[i]?.expectedReadyDate
+                ? isoToDate(input.lines[i]!.expectedReadyDate!)
+                : null,
               notes: l.notes,
             })),
           },
         },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'purchase_order', entityId: created.id, action: 'create', after: created });
+      await this.audit.log(tx, actor, {
+        entityType: 'purchase_order',
+        entityId: created.id,
+        action: 'create',
+        after: created,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'purchase_order.created',
         entityType: 'purchase_order',
@@ -403,20 +454,27 @@ export class PurchaseOrdersService {
     const po = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
       assertVersion('Purchase order', current.version, input.version);
-      if (!EDITABLE.has(current.status)) throw new BusinessRuleError('Only draft or sent purchase orders can be edited', 'NOT_EDITABLE');
+      if (!EDITABLE.has(current.status))
+        throw new BusinessRuleError('Only draft or sent purchase orders can be edited', 'NOT_EDITABLE');
       const { company, fxRate, data } = await this.header(tx, actor, input);
       const doc = await this.lines.prepare(tx, input.currency, input.lines);
       const keepIds = new Set(doc.lines.map((l) => l.id).filter((x): x is string => !!x));
       for (const existing of current.lines) {
         if (!keepIds.has(existing.id)) {
           if (existing.allocations.length > 0) {
-            throw new BusinessRuleError(`Line ${existing.lineNo} is allocated to sales orders and cannot be removed`, 'HAS_ALLOCATIONS');
+            throw new BusinessRuleError(
+              `Line ${existing.lineNo} is allocated to sales orders and cannot be removed`,
+              'HAS_ALLOCATIONS',
+            );
           }
           await tx.purchaseOrderLine.delete({ where: { id: existing.id } });
         }
       }
       // Temporarily move line numbers out of the way to allow re-numbering without unique conflicts.
-      await tx.purchaseOrderLine.updateMany({ where: { purchaseOrderId: id }, data: { lineNo: { increment: 1000 } } });
+      await tx.purchaseOrderLine.updateMany({
+        where: { purchaseOrderId: id },
+        data: { lineNo: { increment: 1000 } },
+      });
       for (const [i, l] of doc.lines.entries()) {
         const existing = l.id ? current.lines.find((x) => x.id === l.id) : undefined;
         if (l.id && !existing) throw new NotFoundError('Purchase order line', l.id);
@@ -432,17 +490,24 @@ export class PurchaseOrdersService {
           unitPrice: l.unitPrice,
           discountPct: l.discountPct,
           lineTotal: l.lineTotal,
-          expectedReadyDate: input.lines[i]?.expectedReadyDate ? isoToDate(input.lines[i]!.expectedReadyDate!) : null,
+          expectedReadyDate: input.lines[i]?.expectedReadyDate
+            ? isoToDate(input.lines[i]!.expectedReadyDate!)
+            : null,
           notes: l.notes,
         };
         if (existing) {
           if (existing.allocations.length > 0) {
             if (existing.variantId !== l.variantId) {
-              throw new BusinessRuleError(`Line ${existing.lineNo} is allocated; its specification cannot change`, 'HAS_ALLOCATIONS');
+              throw new BusinessRuleError(
+                `Line ${existing.lineNo} is allocated; its specification cannot change`,
+                'HAS_ALLOCATIONS',
+              );
             }
             const allocated = sum(existing.allocations.map((a) => a.qtyBase.toFixed()));
             if (dec(l.qtyBase).lt(allocated)) {
-              throw new BusinessRuleError(`Line ${existing.lineNo}: quantity cannot be below the ${allocated.toFixed()} kg already allocated`);
+              throw new BusinessRuleError(
+                `Line ${existing.lineNo}: quantity cannot be below the ${allocated.toFixed()} kg already allocated`,
+              );
             }
           }
           await tx.purchaseOrderLine.update({ where: { id: existing.id }, data: row });
@@ -463,7 +528,13 @@ export class PurchaseOrdersService {
         },
         include,
       });
-      await this.audit.log(tx, actor, { entityType: 'purchase_order', entityId: id, action: 'update', before: current, after: updated });
+      await this.audit.log(tx, actor, {
+        entityType: 'purchase_order',
+        entityId: id,
+        action: 'update',
+        before: current,
+        after: updated,
+      });
       return updated;
     });
     return this.toDto(actor, po);
@@ -472,9 +543,11 @@ export class PurchaseOrdersService {
   async delete(actor: Actor, id: string): Promise<void> {
     await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
-      if (current.status !== 'DRAFT') throw new BusinessRuleError('Only draft purchase orders can be deleted. Cancel it instead.');
+      if (current.status !== 'DRAFT')
+        throw new BusinessRuleError('Only draft purchase orders can be deleted. Cancel it instead.');
       const allocations = current.lines.flatMap((l) => l.allocations);
-      if (allocations.length) await tx.orderAllocation.deleteMany({ where: { id: { in: allocations.map((a) => a.id) } } });
+      if (allocations.length)
+        await tx.orderAllocation.deleteMany({ where: { id: { in: allocations.map((a) => a.id) } } });
       await tx.purchaseOrder.delete({ where: { id } });
       await this.audit.log(tx, actor, {
         entityType: 'purchase_order',
@@ -508,13 +581,20 @@ export class PurchaseOrdersService {
       }
       if (to === 'CANCELLED') {
         if (!can(actor, 'purchase_order.cancel')) throw new ForbiddenError();
-        if (!input.reason) throw new BusinessRuleError('A reason is required to cancel', 'VALIDATION', undefined, { reason: ['Required'] });
+        if (!input.reason)
+          throw new BusinessRuleError('A reason is required to cancel', 'VALIDATION', undefined, {
+            reason: ['Required'],
+          });
       } else if (!can(actor, 'purchase_order.confirm')) {
         throw new ForbiddenError();
       }
       const company = await this.company.get(actor.companyId, tx);
       const today = this.company.today(company);
-      const data: Prisma.PurchaseOrderUpdateInput = { status: to, updatedById: actor.userId, version: { increment: 1 } };
+      const data: Prisma.PurchaseOrderUpdateInput = {
+        status: to,
+        updatedById: actor.userId,
+        version: { increment: 1 },
+      };
       if (input.supplierRef) data.supplierRef = input.supplierRef;
       if (input.confirmedReadyDate) data.confirmedReadyDate = isoToDate(input.confirmedReadyDate);
 
@@ -527,7 +607,8 @@ export class PurchaseOrdersService {
         data.grandTotalBase = toBase(current.grandTotal.toFixed(), fxRate, company.baseMinorUnits).toFixed();
         await tx.purchaseOrderPaymentSchedule.deleteMany({ where: { purchaseOrderId: id } });
         if (current.paymentTerm) {
-          const ready = input.confirmedReadyDate ?? day(current.confirmedReadyDate ?? current.expectedReadyDate);
+          const ready =
+            input.confirmedReadyDate ?? day(current.confirmedReadyDate ?? current.expectedReadyDate);
           const schedule = buildInstallmentSchedule(
             current.paymentTerm.installments.map((i) => ({
               percent: i.percent.toFixed(),
@@ -610,16 +691,32 @@ export class PurchaseOrdersService {
         supplierId: current.supplierId,
         summary: `Purchase order ${current.number} ${labels[to]}${input.reason ? `: ${input.reason}` : ''}`,
       });
-      await this.audit.outbox(tx, `purchase_order.${to.toLowerCase()}`, 'purchase_order', id, { number: current.number, status: to });
+      await this.audit.outbox(tx, `purchase_order.${to.toLowerCase()}`, 'purchase_order', id, {
+        number: current.number,
+        status: to,
+      });
       return updated;
     });
     return this.toDto(actor, po);
   }
 
-  private async upsertMilestone(tx: Tx, purchaseOrderId: string, input: { milestone: MilestoneInput['milestone']; plannedDate?: string | null; actualDate?: string | null; notes?: string | null }) {
+  private async upsertMilestone(
+    tx: Tx,
+    purchaseOrderId: string,
+    input: {
+      milestone: MilestoneInput['milestone'];
+      plannedDate?: string | null;
+      actualDate?: string | null;
+      notes?: string | null;
+    },
+  ) {
     const data = {
-      ...(input.plannedDate !== undefined ? { plannedDate: input.plannedDate ? isoToDate(input.plannedDate) : null } : {}),
-      ...(input.actualDate !== undefined ? { actualDate: input.actualDate ? isoToDate(input.actualDate) : null } : {}),
+      ...(input.plannedDate !== undefined
+        ? { plannedDate: input.plannedDate ? isoToDate(input.plannedDate) : null }
+        : {}),
+      ...(input.actualDate !== undefined
+        ? { actualDate: input.actualDate ? isoToDate(input.actualDate) : null }
+        : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
     };
     await tx.purchaseOrderMilestone.upsert({
@@ -632,9 +729,15 @@ export class PurchaseOrdersService {
   async saveMilestone(actor: Actor, id: string, input: MilestoneInput): Promise<PurchaseOrderDto> {
     const po = await this.prisma.tx(async (tx) => {
       const current = await this.find(actor, id, tx);
-      if (['CANCELLED', 'CLOSED'].includes(current.status)) throw new BusinessRuleError(`Purchase order is ${current.status}`);
+      if (['CANCELLED', 'CLOSED'].includes(current.status))
+        throw new BusinessRuleError(`Purchase order is ${current.status}`);
       await this.upsertMilestone(tx, id, input);
-      await this.audit.log(tx, actor, { entityType: 'purchase_order', entityId: id, action: 'milestone', details: { ...input } });
+      await this.audit.log(tx, actor, {
+        entityType: 'purchase_order',
+        entityId: id,
+        action: 'milestone',
+        details: { ...input },
+      });
       if (input.actualDate) {
         await this.audit.activity(tx, actor, {
           eventType: `purchase_order.milestone.${input.milestone.toLowerCase()}`,
@@ -661,7 +764,10 @@ export class PurchaseOrdersService {
   async allocateInTx(tx: Tx, actor: Actor, input: AllocationInput): Promise<string> {
     await this.lockLines(tx, input.salesOrderLineId, input.purchaseOrderLineId);
     const soLine = await tx.salesOrderLine.findFirst({
-      where: { id: input.salesOrderLineId, salesOrder: { companyId: actor.companyId, ...viaCustomerScope(actor) } },
+      where: {
+        id: input.salesOrderLineId,
+        salesOrder: { companyId: actor.companyId, ...viaCustomerScope(actor) },
+      },
       include: { salesOrder: true, variant: true, allocations: true },
     });
     if (!soLine) throw new NotFoundError('Sales order line', input.salesOrderLineId);
@@ -670,10 +776,13 @@ export class PurchaseOrdersService {
       include: { purchaseOrder: true, variant: true, allocations: true },
     });
     if (!poLine) throw new NotFoundError('Purchase order line', input.purchaseOrderLineId);
-    if (soLine.salesOrder.status !== 'CONFIRMED') throw new BusinessRuleError(`Sales order ${soLine.salesOrder.number} is not confirmed`);
+    if (soLine.salesOrder.status !== 'CONFIRMED')
+      throw new BusinessRuleError(`Sales order ${soLine.salesOrder.number} is not confirmed`);
     if (soLine.lineStatus !== 'OPEN') throw new BusinessRuleError('Sales order line is closed');
     if (['CANCELLED', 'CLOSED'].includes(poLine.purchaseOrder.status)) {
-      throw new BusinessRuleError(`Purchase order ${poLine.purchaseOrder.number} is ${poLine.purchaseOrder.status}`);
+      throw new BusinessRuleError(
+        `Purchase order ${poLine.purchaseOrder.number} is ${poLine.purchaseOrder.status}`,
+      );
     }
     if (poLine.lineStatus !== 'OPEN') throw new BusinessRuleError('Purchase order line is closed');
     const isSubstitute = soLine.variantId !== poLine.variantId;
@@ -689,8 +798,12 @@ export class PurchaseOrdersService {
     if (!uom || uom.dimension !== 'MASS') throw new BusinessRuleError(`Unknown unit ${input.uom}`);
     const qtyBase = toBaseQty(input.qty, uom.factorToBase.toFixed());
     const existing = soLine.allocations.find((a) => a.purchaseOrderLineId === poLine.id);
-    const soAllocated = sum(soLine.allocations.filter((a) => a.id !== existing?.id).map((a) => a.qtyBase.toFixed()));
-    const poAllocated = sum(poLine.allocations.filter((a) => a.id !== existing?.id).map((a) => a.qtyBase.toFixed()));
+    const soAllocated = sum(
+      soLine.allocations.filter((a) => a.id !== existing?.id).map((a) => a.qtyBase.toFixed()),
+    );
+    const poAllocated = sum(
+      poLine.allocations.filter((a) => a.id !== existing?.id).map((a) => a.qtyBase.toFixed()),
+    );
     const newQty = existing ? dec(existing.qtyBase.toFixed()).plus(qtyBase) : qtyBase;
     assertAllocation({
       qty: newQty,
@@ -703,7 +816,11 @@ export class PurchaseOrdersService {
     const allocation = existing
       ? await tx.orderAllocation.update({
           where: { id: existing.id },
-          data: { qtyBase: newQty.toFixed(), isSubstitute, substituteNote: input.substituteNote ?? existing.substituteNote },
+          data: {
+            qtyBase: newQty.toFixed(),
+            isSubstitute,
+            substituteNote: input.substituteNote ?? existing.substituteNote,
+          },
         })
       : await tx.orderAllocation.create({
           data: {
@@ -751,7 +868,10 @@ export class PurchaseOrdersService {
   private async allocationById(actor: Actor, id: string): Promise<AllocationDto> {
     const a = await this.prisma.orderAllocation.findUniqueOrThrow({
       where: { id },
-      include: { ...allocationInclude, purchaseOrderLine: { include: { purchaseOrder: { include: { supplier: true } } } } },
+      include: {
+        ...allocationInclude,
+        purchaseOrderLine: { include: { purchaseOrder: { include: { supplier: true } } } },
+      },
     });
     const pl = a.purchaseOrderLine;
     const po = pl.purchaseOrder;
@@ -771,22 +891,38 @@ export class PurchaseOrdersService {
       qtyBase: a.qtyBase.toFixed(),
       isSubstitute: a.isSubstitute,
       substituteNote: a.substituteNote,
-      unitCostBase: canSeeCosts(actor) && !pl.qtyBase.isZero() ? pl.lineTotal.div(pl.qtyBase).toDecimalPlaces(6).toFixed() : null,
+      unitCostBase:
+        canSeeCosts(actor) && !pl.qtyBase.isZero()
+          ? pl.lineTotal.div(pl.qtyBase).toDecimalPlaces(6).toFixed()
+          : null,
       poCurrency: po.currency,
       createdAt: tsReq(a.createdAt),
     };
   }
 
   /** Changes an allocation quantity; zero removes it. */
-  async updateAllocation(actor: Actor, id: string, qty: string, uomCode: string, reason: string): Promise<AllocationDto | null> {
+  async updateAllocation(
+    actor: Actor,
+    id: string,
+    qty: string,
+    uomCode: string,
+    reason: string,
+  ): Promise<AllocationDto | null> {
     const removed = await this.prisma.tx(async (tx) => {
       const a = await tx.orderAllocation.findFirst({
-        where: { id, salesOrderLine: { salesOrder: { companyId: actor.companyId, ...viaCustomerScope(actor) } } },
-        include: { ...allocationInclude, purchaseOrderLine: { include: { purchaseOrder: true, allocations: true } } },
+        where: {
+          id,
+          salesOrderLine: { salesOrder: { companyId: actor.companyId, ...viaCustomerScope(actor) } },
+        },
+        include: {
+          ...allocationInclude,
+          purchaseOrderLine: { include: { purchaseOrder: true, allocations: true } },
+        },
       });
       if (!a) throw new NotFoundError('Allocation', id);
       await this.lockLines(tx, a.salesOrderLineId, a.purchaseOrderLineId);
-      if (a.purchaseOrderLine.purchaseOrder.status === 'CLOSED') throw new BusinessRuleError('The purchase order is closed');
+      if (a.purchaseOrderLine.purchaseOrder.status === 'CLOSED')
+        throw new BusinessRuleError('The purchase order is closed');
       const uom = await tx.uom.findUnique({ where: { code: uomCode } });
       if (!uom) throw new BusinessRuleError(`Unknown unit ${uomCode}`);
       const qtyBase = toBaseQty(qty, uom.factorToBase.toFixed());
@@ -795,14 +931,19 @@ export class PurchaseOrdersService {
       if (qtyBase.isZero()) {
         await tx.orderAllocation.delete({ where: { id } });
       } else {
-        const soLine = await tx.salesOrderLine.findUniqueOrThrow({ where: { id: a.salesOrderLineId }, include: { allocations: true } });
+        const soLine = await tx.salesOrderLine.findUniqueOrThrow({
+          where: { id: a.salesOrderLineId },
+          include: { allocations: true },
+        });
         assertAllocation({
           qty: qtyBase,
           soLineOrdered: soLine.qtyBase.toFixed(),
           soLineTolerancePct: soLine.tolerancePct.toFixed(),
           soLineAllocated: sum(soLine.allocations.filter((x) => x.id !== id).map((x) => x.qtyBase.toFixed())),
           poLineQty: a.purchaseOrderLine.qtyBase.toFixed(),
-          poLineAllocated: sum(a.purchaseOrderLine.allocations.filter((x) => x.id !== id).map((x) => x.qtyBase.toFixed())),
+          poLineAllocated: sum(
+            a.purchaseOrderLine.allocations.filter((x) => x.id !== id).map((x) => x.qtyBase.toFixed()),
+          ),
         });
         await tx.orderAllocation.update({ where: { id }, data: { qtyBase: qtyBase.toFixed() } });
       }
@@ -839,14 +980,18 @@ export class PurchaseOrdersService {
       const minor = await this.company.minorUnits(input.currency, tx);
       const uoms = new Map((await tx.uom.findMany()).map((u) => [u.code, u]));
       const soLines = await tx.salesOrderLine.findMany({
-        where: { id: { in: input.lines.map((l) => l.salesOrderLineId) }, salesOrder: { companyId: actor.companyId, status: 'CONFIRMED' } },
+        where: {
+          id: { in: input.lines.map((l) => l.salesOrderLineId) },
+          salesOrder: { companyId: actor.companyId, status: 'CONFIRMED' },
+        },
         include: { salesOrder: true },
       });
       const lineRows = input.lines.map((l, i) => {
         const so = soLines.find((s) => s.id === l.salesOrderLineId);
         if (!so) throw new BusinessRuleError(`Line ${i + 1}: sales order line not found or not confirmed`);
         const uom = uoms.get(l.uom);
-        if (!uom || uom.dimension !== 'MASS') throw new BusinessRuleError(`Line ${i + 1}: unknown unit ${l.uom}`);
+        if (!uom || uom.dimension !== 'MASS')
+          throw new BusinessRuleError(`Line ${i + 1}: unknown unit ${l.uom}`);
         const totals = computeLineTotals({ qty: l.qty, unitPrice: l.unitPrice }, minor);
         return {
           lineNo: i + 1,
@@ -864,7 +1009,11 @@ export class PurchaseOrdersService {
           notes: `For ${so.salesOrder.number} line ${so.lineNo}`,
         };
       });
-      const totals = computeDocumentTotals(input.lines.map((l) => ({ qty: l.qty, unitPrice: l.unitPrice })), {}, minor);
+      const totals = computeDocumentTotals(
+        input.lines.map((l) => ({ qty: l.qty, unitPrice: l.unitPrice })),
+        {},
+        minor,
+      );
       const number = await this.sequences.next(tx, actor.companyId, 'PO', yearOf(input.poDate));
       const po = await tx.purchaseOrder.create({
         data: {
@@ -881,7 +1030,13 @@ export class PurchaseOrdersService {
         },
         include: { lines: { orderBy: { lineNo: 'asc' } }, supplier: true },
       });
-      await this.audit.log(tx, actor, { entityType: 'purchase_order', entityId: po.id, action: 'create', after: po, details: undefined });
+      await this.audit.log(tx, actor, {
+        entityType: 'purchase_order',
+        entityId: po.id,
+        action: 'create',
+        after: po,
+        details: undefined,
+      });
       await this.audit.activity(tx, actor, {
         eventType: 'purchase_order.created',
         entityType: 'purchase_order',
@@ -892,7 +1047,13 @@ export class PurchaseOrdersService {
       });
       for (const [i, l] of input.lines.entries()) {
         const poLine = po.lines[i]!;
-        await this.allocateInTx(tx, actor, { salesOrderLineId: l.salesOrderLineId, purchaseOrderLineId: poLine.id, qty: l.qty, uom: l.uom, substituteNote: null });
+        await this.allocateInTx(tx, actor, {
+          salesOrderLineId: l.salesOrderLineId,
+          purchaseOrderLineId: poLine.id,
+          qty: l.qty,
+          uom: l.uom,
+          substituteNote: null,
+        });
       }
       return po.id;
     });
@@ -918,7 +1079,11 @@ export class PurchaseOrdersService {
         const allocated = sum(l.allocations.map((a) => a.qtyBase.toFixed()));
         return {
           purchaseOrderLineId: l.id,
-          purchaseOrder: { id: l.purchaseOrder.id, code: l.purchaseOrder.number, name: l.purchaseOrder.number },
+          purchaseOrder: {
+            id: l.purchaseOrder.id,
+            code: l.purchaseOrder.number,
+            name: l.purchaseOrder.number,
+          },
           supplier: refReq(l.purchaseOrder.supplier),
           poStatus: l.purchaseOrder.status,
           lineNo: l.lineNo,
@@ -929,7 +1094,9 @@ export class PurchaseOrdersService {
           unitPrice: showCost ? l.unitPrice.toFixed() : null,
           uom: l.uom,
           currency: l.purchaseOrder.currency,
-          expectedReadyDate: day(l.expectedReadyDate ?? l.purchaseOrder.confirmedReadyDate ?? l.purchaseOrder.expectedReadyDate),
+          expectedReadyDate: day(
+            l.expectedReadyDate ?? l.purchaseOrder.confirmedReadyDate ?? l.purchaseOrder.expectedReadyDate,
+          ),
         };
       })
       .filter((l) => new Decimal(l.unallocatedQtyBase).gt(0));
