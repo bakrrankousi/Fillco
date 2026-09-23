@@ -39,7 +39,19 @@ menu, then **Code → Download ZIP** and unzip it. Or with Git:
 git clone -b claude/confident-edison-v2n5az https://github.com/bakrrankousi/fillco.git
 ```
 
-### 3. First-time setup
+### 3. Start it with a double-click (easiest)
+
+Open the unzipped folder and double-click:
+
+- **Windows:** `Start Fillco (Windows).bat`. If Windows shows "Windows protected your PC", click
+  **More info → Run anyway**.
+- **Mac:** `Start Fillco (Mac).command`. If the Mac says it cannot be opened, right-click the file →
+  **Open → Open**.
+
+A window opens and does everything below by itself (the first time takes several minutes), then
+opens Fillco in your browser. Keep that window open while you use Fillco; close it to stop.
+
+### Or step by step in a terminal
 
 Open a terminal in the project folder (Windows: right-click the folder → "Open in Terminal";
 Mac: Terminal, then `cd` into the folder) and run these one by one:
@@ -54,7 +66,7 @@ pnpm db:migrate               # creates the database tables
 pnpm db:seed                  # adds roles, users and demo data
 ```
 
-### 4. Start the app
+### Start the app (terminal)
 
 ```bash
 pnpm start
