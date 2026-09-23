@@ -1,0 +1,33 @@
+{
+  "name": "fillco",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter @fillco/e2e test",
+    "db:generate": "pnpm --filter @fillco/db generate",
+    "db:migrate": "pnpm --filter @fillco/db migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @fillco/db migrate:dev",
+    "db:seed": "pnpm --filter @fillco/db seed",
+    "db:reset": "pnpm --filter @fillco/db reset",
+    "db:check": "pnpm --filter @fillco/db integrity"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.0",
+    "turbo": "^2.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

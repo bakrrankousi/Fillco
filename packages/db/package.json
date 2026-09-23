@@ -1,0 +1,33 @@
+{
+  "name": "@fillco/db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Database schema, migrations, SQL views, reference data and demo seed",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "reset": "prisma migrate reset --force --skip-seed && tsx src/cli/bootstrap.ts",
+    "integrity": "tsx src/cli/integrity.ts",
+    "bootstrap": "tsx src/cli/bootstrap.ts"
+  },
+  "dependencies": {
+    "@fillco/domain": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "@prisma/client": "6.19.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "prisma": "6.19.3",
+    "tsx": "^4.20.0",
+    "@fillco/contracts": "workspace:*"
+  }
+}
