@@ -13,11 +13,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo run test",
-    "test:e2e": "pnpm --filter @fillco/e2e test",
+    "test:e2e": "pnpm --filter @fillco/e2e e2e",
     "db:generate": "pnpm --filter @fillco/db generate",
     "db:migrate": "pnpm --filter @fillco/db migrate:deploy",
     "db:migrate:dev": "pnpm --filter @fillco/db migrate:dev",
-    "db:seed": "pnpm --filter @fillco/db seed",
+    "db:seed": "pnpm --filter @fillco/db bootstrap && pnpm --filter @fillco/api seed:demo",
     "db:reset": "pnpm --filter @fillco/db reset",
     "db:check": "pnpm --filter @fillco/db integrity"
   },

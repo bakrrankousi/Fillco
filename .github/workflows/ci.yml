@@ -49,7 +49,7 @@ jobs:
         run: pnpm test
       - name: Demo seed and database integrity
         run: |
-          pnpm --filter @fillco/api seed:demo
+          pnpm db:seed
           pnpm db:check
       - name: End-to-end tests
         run: |

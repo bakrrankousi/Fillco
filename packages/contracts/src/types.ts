@@ -250,6 +250,9 @@ export interface CustomerListItemDto {
   status: CustomerStatus;
   defaultCurrency: string;
   paymentTerm: string | null;
+  paymentTermId: string | null;
+  defaultIncoterm: string | null;
+  defaultDestinationPortId: string | null;
   creditLimit: DecimalString;
   creditLimitCurrency: string;
   salesperson: string | null;
@@ -297,6 +300,9 @@ export interface SupplierListItemDto {
   status: SupplierStatus;
   defaultCurrency: string;
   paymentTerm: string | null;
+  paymentTermId: string | null;
+  defaultIncoterm: string | null;
+  defaultLoadingPortId: string | null;
   productionLeadTimeDays: number | null;
   phone: string | null;
   email: string | null;

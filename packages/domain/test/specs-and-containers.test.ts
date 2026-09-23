@@ -81,6 +81,27 @@ describe('flexible product specifications', () => {
     );
     expect(name).toBe('PSF HCS 7D x 64mm Optical White');
   });
+  it('joins only the leading measurement pair and labels percentages', () => {
+    const lmDefs: AttributeDefinition[] = [
+      ...defs,
+      { code: 'melt_point_c', label: 'Melting point', dataType: 'NUMBER', unit: '°C' },
+      { code: 'low_melt_pct', label: 'Low melt share', dataType: 'NUMBER', unit: '%' },
+    ];
+    const lmRules: CategoryAttributeRule[] = [
+      { code: 'denier', required: true, variantDefining: true, sortOrder: 1 },
+      { code: 'cut_length_mm', required: true, variantDefining: true, sortOrder: 2 },
+      { code: 'melt_point_c', required: true, variantDefining: true, sortOrder: 3 },
+      { code: 'low_melt_pct', required: false, variantDefining: true, sortOrder: 4 },
+    ];
+    expect(
+      describeVariant('LMF', lmDefs, lmRules, {
+        denier: 4,
+        cut_length_mm: 51,
+        melt_point_c: 110,
+        low_melt_pct: 50,
+      }),
+    ).toBe('LMF 4D x 51mm 110°C 50% low melt share');
+  });
 });
 
 describe('ISO 6346 container numbers', () => {

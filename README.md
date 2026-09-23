@@ -13,7 +13,59 @@ Supplier → Purchase Order → Production → Shipment → Documents → Custom
 
 ## Status
 
-**Design phase. Awaiting approval before Phase 1 implementation.**
+**Phase 1 complete:** sign-in, users and roles, audit log, customers (with credit control), suppliers
+(with four-eyes bank-detail approval), products with flexible specifications, quotations, sales orders,
+purchase orders with back-to-back allocation to customer orders, global search and a first dashboard.
+Phase 2 (shipments, documents, invoices, payments) is next.
+
+## Running locally
+
+Requirements: Node 22, pnpm 10, PostgreSQL 16 (or `docker compose up -d`).
+
+```bash
+cp .env.example .env          # adjust DATABASE_URL / TEST_DATABASE_URL if needed
+pnpm install
+pnpm build
+pnpm db:migrate               # apply migrations
+pnpm db:seed                  # roles, admin user and demo data
+pnpm --filter @fillco/api start    # API on http://localhost:4000/api/v1
+pnpm --filter @fillco/web start    # web app on http://localhost:3000
+```
+
+Use `pnpm dev` while developing. Demo users all use the password `Fillco-Demo-2026`:
+
+| User                         | Role       |
+| ---------------------------- | ---------- |
+| `admin@fillco.local`         | Admin      |
+| `omar.haddad@fillco.local`   | Management |
+| `selin.kaya@fillco.local`    | Sales      |
+| `karim.mansour@fillco.local` | Sales      |
+| `wei.chen@fillco.local`      | Purchasing |
+| `emre.demir@fillco.local`    | Logistics  |
+| `nadia.farouk@fillco.local`  | Finance    |
+| `viewer@fillco.local`        | Viewer     |
+
+## Checks
+
+```bash
+pnpm lint && pnpm typecheck
+pnpm test          # domain + contract unit tests, API integration tests (uses TEST_DATABASE_URL)
+pnpm db:check      # database integrity checks (totals, allocation caps, sequences, …)
+pnpm test:e2e      # Playwright end-to-end tests against the seeded demo database
+```
+
+## Layout
+
+| Path                 | Contents                                                           |
+| -------------------- | ------------------------------------------------------------------ |
+| `apps/api`           | NestJS API: auth, RBAC, audit, business modules, demo seed         |
+| `apps/web`           | Next.js web app                                                    |
+| `packages/domain`    | Pure business rules: money, FX, payment terms, credit, allocations |
+| `packages/contracts` | Shared validation schemas, DTOs and permissions                    |
+| `packages/db`        | Prisma schema, migrations, DB triggers/views, bootstrap, integrity |
+| `e2e`                | Playwright tests covering the deal chain across roles              |
+
+## Design documents
 
 | Document                                                                         | Contents                                                      |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------- |

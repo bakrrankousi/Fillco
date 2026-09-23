@@ -305,3 +305,31 @@ describe('customers, suppliers, settings and catalog', () => {
     });
   });
 });
+
+describe('audit log hygiene', () => {
+  let ctx: TestContext;
+  beforeAll(async () => {
+    ctx = await startApp();
+  });
+  afterAll(async () => ctx.close());
+
+  it('never stores secrets or related records, only changed scalar fields', async () => {
+    const email = `${uniq('aud')}@test.local`;
+    await ensureUser(ctx.prisma, email, ['ADMIN']);
+    const admin = await Client.login(ctx.app, email);
+    const created = await admin.post('/customers', {
+      companyName: `Hygiene ${uniq()}`,
+      countryCode: 'EG',
+      defaultCurrency: 'USD',
+      salespersonId: admin.me.id,
+    });
+    expect(created.status).toBe(201);
+    const logs = await ctx.prisma.auditLog.findMany();
+    const text = JSON.stringify(logs, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+    expect(text).not.toMatch(/argon2|passwordHash|tokenHash|csrfToken/);
+    const entry = logs.find((l) => l.entityId === created.body.id && l.action === 'create')!;
+    const after = (entry.changes as { after: Record<string, unknown> }).after;
+    expect(after.companyName).toBe(created.body.companyName);
+    expect(Object.values(after).every((v) => v === null || typeof v !== 'object')).toBe(true);
+  });
+});

@@ -24,9 +24,10 @@
 | Users, roles, settings | VCEDA | V | — | — | — | — | — |
 | Customers | VCEDA | VCEA | VCE (own) | V | V | VE (credit, terms) | V |
 | Customer credit limit | VCEA | VEA | V | — | — | VE | — |
-| Credit override | A | A | — | — | — | A (≤ threshold) | — |
+| Credit override (limit exceeded) | A | A | — | — | — | A | — |
+| Credit override (blocked / old overdue) | A | A | — | — | — | — | — |
 | Suppliers | VCEDA | VCEA | V | VCE | V | VE | V |
-| Supplier bank details | VEA | VA | — | V | — | VCE (approve by 2nd person) | — |
+| Supplier bank details | VEA | VEA | — | VC | — | VCEA (approve by 2nd person) | — |
 | Products & specs | VCEDA | VCEA | VC | VCE | V | V | V |
 | Quotations | VCEDA | VCEA | VCEDA (own) | V | V | V | V |
 | Sales orders | VCEDA | VCEA | VCED + confirm (own) | V + allocate | V | V | V |

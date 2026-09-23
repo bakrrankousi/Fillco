@@ -63,14 +63,19 @@ pending_shipments  = part of open_orders already loaded/in transit (shown separa
 unapplied_credit   = unallocated customer payments + advances received on open orders
 exposure           = open_ar + open_orders − unapplied_credit
 available_credit   = credit_limit − exposure
-available_after    = available_credit − new_order_value
+secured_pct        = % of the new order due on ORDER_CONFIRMATION / BEFORE_LOADING (advance / CAD before loading)
+new_order_unsecured= new_order_value × (100 − secured_pct) / 100
+available_after    = available_credit − new_order_unsecured
 ```
+The advance part of an order is secured by its payment terms and does not consume credit.
 Example: limit 100,000, outstanding 60,000, new order 30,000 → available before 40,000,
 **after 10,000** → PASS. A new order of 45,000 → after −5,000 → **WARN** (override required).
 
 Result rules: `BLOCK` if the customer is BLOCKED/ON_HOLD, or has any amount overdue more than N days (default 30);
 `WARN` if `available_after < 0`; otherwise `PASS`. A credit limit of 0 with cash-in-advance terms means
-"no credit" and does not warn when the advance covers 100%. The check runs on SO confirmation and again
+"no credit" and does not warn when the advance covers 100%. Confirming past a `WARN` needs `credit.override`
+(Admin, Management, Finance); past a `BLOCK` needs `credit.override_block` (Admin, Management). Both require a
+written reason and are stored immutably with the credit-check snapshot. The check runs on SO confirmation and again
 (warning only) on shipment release for unpaid CAD/open-account orders.
 
 ## 5. Quantities, partial shipments, derived statuses

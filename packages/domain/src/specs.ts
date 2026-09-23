@@ -135,7 +135,8 @@ export function canonicalSpec(values: SpecValues, rules: readonly CategoryAttrib
 export function formatSpecValue(def: AttributeDefinition, value: SpecValue): string {
   switch (def.dataType) {
     case 'NUMBER':
-      return `${value}${def.unit ?? ''}`;
+      // A bare percentage is ambiguous in a name ("50%"), so it carries its label.
+      return def.unit === '%' ? `${value}% ${def.label.toLowerCase()}` : `${value}${def.unit ?? ''}`;
     case 'BOOLEAN':
       return value ? (def.trueLabel ?? def.label) : (def.falseLabel ?? `Non-${def.label.toLowerCase()}`);
     case 'ENUM':
@@ -147,7 +148,7 @@ export function formatSpecValue(def: AttributeDefinition, value: SpecValue): str
 
 /**
  * Variant display name, e.g. "PSF HCS 7D x 64mm Optical White".
- * Consecutive numeric attributes are joined with " x " as in trade usage (denier x cut length).
+ * The first two consecutive measurements are joined with " x " as in trade usage (denier x cut length).
  */
 export function describeVariant(
   productName: string,
@@ -165,10 +166,12 @@ export function describeVariant(
     if (!def || value === undefined) continue;
     parts.push({ text: formatSpecValue(def, value), numeric: def.dataType === 'NUMBER' });
   }
+  // Trade usage joins the leading pair of measurements, e.g. denier x cut length ("7D x 64mm").
+  const firstNumeric = parts.findIndex((p) => p.numeric);
   let out = productName;
   parts.forEach((p, i) => {
-    const prev = parts[i - 1];
-    out += prev && prev.numeric && p.numeric ? ` x ${p.text}` : ` ${p.text}`;
+    const joinWithX = i === firstNumeric + 1 && firstNumeric >= 0 && p.numeric;
+    out += joinWithX ? ` x ${p.text}` : ` ${p.text}`;
   });
   return out;
 }

@@ -5,6 +5,9 @@ import type { Tx } from './prisma.service';
 
 type Plain = Record<string, unknown>;
 
+/** Keys that must never reach the audit log, at any depth. */
+const SECRET_KEY = /password|secret|token|hash/i;
+
 function normalize(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
@@ -12,14 +15,29 @@ function normalize(value: unknown): unknown {
   if (typeof value === 'bigint') return value.toString();
   if (Array.isArray(value)) return value.map(normalize);
   if (typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value as Plain).map(([k, v]) => [k, normalize(v)]));
+    return Object.fromEntries(
+      Object.entries(value as Plain)
+        .filter(([k]) => !SECRET_KEY.test(k))
+        .map(([k, v]) => [k, normalize(v)]),
+    );
   }
   return value;
 }
 
-const IGNORED = new Set(['updatedAt', 'updatedById', 'version', 'passwordHash', 'createdAt', 'createdById']);
+const IGNORED = new Set([
+  'id',
+  'updatedAt',
+  'updatedById',
+  'version',
+  'createdAt',
+  'createdById',
+  'companyId',
+]);
 
-/** Only the fields that changed, as { before, after }. Secrets are never logged. */
+/**
+ * Only the record's own scalar fields that changed, as { before, after }. Related records
+ * (objects / arrays loaded through includes) are skipped; secrets are never logged.
+ */
 export function diff(before: Plain | null, after: Plain | null): { before: Plain; after: Plain } | null {
   const b = (normalize(before ?? {}) as Plain) ?? {};
   const a = (normalize(after ?? {}) as Plain) ?? {};
@@ -27,15 +45,15 @@ export function diff(before: Plain | null, after: Plain | null): { before: Plain
   const out = { before: {} as Plain, after: {} as Plain };
   for (const k of keys) {
     if (IGNORED.has(k)) continue;
-    const bv = b[k];
-    const av = a[k];
-    if (typeof bv === 'object' && bv !== null && !Array.isArray(bv)) continue; // skip nested relations
+    const bv = b[k] ?? null;
+    const av = a[k] ?? null;
+    if ((typeof bv === 'object' && bv !== null) || (typeof av === 'object' && av !== null)) continue;
     if (JSON.stringify(bv) !== JSON.stringify(av)) {
-      if (k in b) out.before[k] = bv;
-      if (k in a) out.after[k] = av;
+      out.before[k] = bv;
+      out.after[k] = av;
     }
   }
-  return Object.keys(out.before).length || Object.keys(out.after).length ? out : null;
+  return Object.keys(out.after).length ? out : null;
 }
 
 export interface AuditEntry {
