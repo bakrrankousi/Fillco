@@ -50,10 +50,11 @@ export const INTEGRITY_CHECKS: Check[] = [
   },
   {
     name: 'header_totals',
-    description: 'Document subtotal / grand total = Σ line totals',
+    description: 'Document subtotal / grand total = Σ line totals (cancelled sales lines excluded)',
     sql: `
       SELECT 'sales_orders' AS tbl, d.id FROM sales_orders d
-        WHERE d.subtotal <> (SELECT COALESCE(SUM(line_total), 0) FROM sales_order_lines WHERE sales_order_id = d.id)
+        WHERE d.subtotal <> (SELECT COALESCE(SUM(line_total), 0) FROM sales_order_lines
+                              WHERE sales_order_id = d.id AND line_status <> 'CANCELLED')
            OR d.grand_total <> d.subtotal
       UNION ALL
       SELECT 'purchase_orders', d.id FROM purchase_orders d

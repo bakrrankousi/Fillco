@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   'customer.archive': 'Archive / reactivate customers',
   'customer.credit_limit.edit': 'Change credit limits and customer status (hold / block)',
   'credit.override': 'Confirm orders that exceed the customer credit limit',
+  'credit.override_block': 'Confirm orders for blocked / on-hold customers or with old overdue amounts',
 
   'supplier.view': 'View suppliers',
   'supplier.create': 'Create suppliers',
@@ -136,7 +137,7 @@ export const DEFAULT_ROLES: readonly RoleDefinition[] = [
     code: 'LOGISTICS',
     name: 'Logistics',
     description: 'Shipments and documents (Phase 2); read access to orders',
-    permissions: [...VIEW_ALL, 'purchase_order.manage', 'export.data'],
+    permissions: [...VIEW_ALL, 'export.data'],
   },
   {
     code: 'FINANCE',
