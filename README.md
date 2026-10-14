@@ -74,6 +74,12 @@ other users and can change company-wide Settings (rates, lines, and who
 can't see customer names); everyone else can still use the rest of the
 app normally.
 
+An admin can also choose which tabs each member account can open
+(Settings → Team accounts → Tab access) — e.g. a loader who only needs Log
+Production and Loading. Settings is always available, and admins always see
+every tab. This keeps each person's screen focused; it isn't a security
+boundary for the underlying data.
+
 You can run `npm run create-admin` again later to make another admin
 account if you ever need one (e.g. a second manager).
 
@@ -194,6 +200,12 @@ Claude's Artifact platform. Everything requires a valid session cookie
   `POST /api/delivery-slips/claim-slip-number`
 - `GET/PUT /api/settings` (PUT is admin-only)
 - `GET/POST /api/users`, `PATCH /api/users/:id` (admin-only)
+
+`GET /api/me` and `GET /api/users` include `allowedTabs`: `null` means every
+tab (always the case for admins), otherwise an array of tab ids from
+`dashboard`, `log`, `loading`, `schedule`, `history`, `capacity`, `orders`
+(`settings` is always allowed and never listed). `POST /api/users` and
+`PATCH /api/users/:id` accept the same field; unknown ids are dropped.
 
 `GET /api/orders` supports `status`, `so`, `dueFrom`, `dueTo`, `limit`.
 `GET /api/schedule` supports `date`, `dateFrom`, `dateTo`, `line`, `shift`,

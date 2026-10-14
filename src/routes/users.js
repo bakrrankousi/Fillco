@@ -4,6 +4,19 @@ const auth = require("../auth");
 const { userOut } = require("../serialize");
 const { wrap, badRequest, notFound } = require("../util/http");
 const { requireAdmin } = require("../middleware/auth");
+const { normalizeAllowedTabs, parseAllowedTabs, serializeAllowedTabs } = require("../tabs");
+
+// Validates an incoming allowedTabs value (array of tab ids, or null for all
+// tabs) into what gets stored; see src/tabs.js. Unknown ids and "settings"
+// are silently dropped rather than rejected.
+function readAllowedTabs(value) {
+  try {
+    return normalizeAllowedTabs(value);
+  } catch (e) {
+    if (e.badInput) throw badRequest(e.message);
+    throw e;
+  }
+}
 
 const router = express.Router();
 
@@ -25,24 +38,30 @@ router.get(
 router.post(
   "/",
   wrap(async (req, res) => {
-    const { username, password, displayName, role } = req.body || {};
+    const { username, password, displayName, role, allowedTabs } = req.body || {};
     if (!username || !password) throw badRequest("username and password are required.");
     if (role && !["admin", "member"].includes(role)) throw badRequest("role must be 'admin' or 'member'.");
     const existing = db.prepare("SELECT 1 FROM users WHERE username = ?").get(username);
     if (existing) throw badRequest("That username is already taken.");
+    const finalRole = role || "member";
+    // Admins always get every tab, so nothing is stored for them.
+    const tabs = finalRole === "admin" ? null : readAllowedTabs(allowedTabs);
     const passwordHash = await auth.hashPassword(password);
     const info = db
       .prepare(
-        "INSERT INTO users (username, password_hash, display_name, role, active, created_at) VALUES (?, ?, ?, ?, 1, ?)"
+        "INSERT INTO users (username, password_hash, display_name, role, active, created_at, allowed_tabs) VALUES (?, ?, ?, ?, 1, ?, ?)"
       )
-      .run(username, passwordHash, displayName || username, role || "member", new Date().toISOString());
+      .run(username, passwordHash, displayName || username, finalRole, new Date().toISOString(), serializeAllowedTabs(tabs));
     const row = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
     res.status(201).json(userOut(row));
   })
 );
 
-// PATCH /api/users/:id — update role / displayName / active, and/or reset
-// the password. Deactivating a user (active:false) also revokes every
+// PATCH /api/users/:id — update role / displayName / active / allowedTabs,
+// and/or reset the password. allowedTabs: an array of tab ids the member may
+// open, or null for all tabs (omit it to leave it unchanged). Promoting an
+// account to admin clears any stored restriction, since admins always see
+// every tab. Deactivating a user (active:false) also revokes every
 // session they currently hold, so it takes effect immediately rather than
 // waiting for their cookie to expire.
 router.patch(
@@ -58,10 +77,12 @@ router.patch(
     const active = b.active !== undefined ? (b.active ? 1 : 0) : existing.active;
     let passwordHash = existing.password_hash;
     if (b.password) passwordHash = await auth.hashPassword(b.password);
+    let tabs = b.allowedTabs !== undefined ? readAllowedTabs(b.allowedTabs) : parseAllowedTabs(existing.allowed_tabs);
+    if (role === "admin") tabs = null;
 
     db.prepare(
-      "UPDATE users SET display_name=?, role=?, active=?, password_hash=? WHERE id=?"
-    ).run(displayName, role, active, passwordHash, existing.id);
+      "UPDATE users SET display_name=?, role=?, active=?, password_hash=?, allowed_tabs=? WHERE id=?"
+    ).run(displayName, role, active, passwordHash, serializeAllowedTabs(tabs), existing.id);
 
     if (!active) {
       db.prepare("DELETE FROM sessions WHERE user_id = ?").run(existing.id);

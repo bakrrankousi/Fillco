@@ -4,6 +4,7 @@
 // later phase is mostly a find/replace of window.claude.use("db") calls for
 // fetch() calls, not a data-model rewrite.
 const db = require("./db");
+const { effectiveAllowedTabs } = require("./tabs");
 
 function orderOut(row) {
   if (!row) return null;
@@ -133,6 +134,9 @@ function userOut(row) {
     role: row.role,
     active: !!row.active,
     createdAt: row.created_at,
+    // null = every tab (always the case for admins); otherwise the tab ids
+    // this member may open. "settings" is implicit and never listed.
+    allowedTabs: effectiveAllowedTabs(row.role, row.allowed_tabs),
   };
 }
 

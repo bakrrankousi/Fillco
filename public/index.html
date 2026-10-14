@@ -161,8 +161,10 @@ tr.dragging{ opacity:.4; }
 tr.drag-over{ outline:2px dashed var(--accent); outline-offset:-2px; }
 .empty{ color:var(--text-mute); font-size:12.5px; padding:18px 8px; text-align:center; }
 .section-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-mute); margin:2px 0 2px; }
-.two-col{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
-@media (max-width:760px){ .two-col{ grid-template-columns:1fr; } }
+/* minmax(0,…) so a wide table inside a card scrolls within its .table-wrap instead of
+   stretching the whole column (and the page) past a phone's screen width */
+.two-col{ display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:16px; }
+@media (max-width:760px){ .two-col{ grid-template-columns:minmax(0,1fr); } }
 .row-flex{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .filter-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
 .filter-bar select, .filter-bar input{ width:auto; min-width:110px; }
@@ -174,6 +176,15 @@ tr.drag-over{ outline:2px dashed var(--accent); outline-offset:-2px; }
 .modal{ background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; width:100%; max-width:480px; border:1px solid var(--border); }
 .modal h3{ font-size:15px; margin-bottom:12px; }
 [hidden]{ display:none!important; }
+/* Team accounts → Tab access: one wrapping row per account, so it fits a phone screen */
+.access-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:9px 0; border-bottom:1px solid var(--border); }
+.access-row:last-child{ border-bottom:none; }
+.access-row .who{ flex:1 1 140px; min-width:0; font-size:12.3px; font-weight:600; overflow-wrap:anywhere; }
+.access-row .who .sub{ display:block; font-size:10.8px; font-weight:400; color:var(--text-mute); }
+.tab-chips{ display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.access-row .tab-chips{ flex:3 1 260px; }
+label.tab-chip{ flex-direction:row; align-items:center; gap:6px; font-weight:600; color:var(--text); background:var(--surface-2); padding:5px 9px; border-radius:7px; cursor:pointer; }
+label.tab-chip input{ width:auto; margin:0; flex:none; }
 .footer-note{ font-size:11px; color:var(--text-mute); text-align:center; padding-top:10px; }
 html[dir="rtl"] body{ font-family:"Cairo","IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 html[dir="rtl"] .mono{ font-family:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; direction:ltr; unicode-bidi:isolate; }
@@ -472,6 +483,9 @@ const I18N = {
     usersNone:"No accounts yet.",
     displayNameLabel:"Display name", roleLabel:"Role", activeLabel:"Active", newPasswordLabel:"New password (optional)",
     newUser:"Add a team account", addUserBtn:"Add account",
+    tabAccessTitle:"Tab access", tabAccessHint:"Choose which tabs each member can open. Settings is always available, and admins always see every tab.",
+    allTabsAdmin:"All tabs (admin)", tabAccessNewUser:"Tabs this account can open",
+    tabVisAdminLimited:"Only the tabs your admin has given you access to are listed.",
     usernamePasswordRequired:"Username and password are required.", usernameTaken:"That username is already taken.",
     saved:"Saved.",
   },
@@ -656,6 +670,9 @@ const I18N = {
     usersNone:"لا توجد حسابات بعد.",
     displayNameLabel:"الاسم المعروض", roleLabel:"الصلاحية", activeLabel:"نشط", newPasswordLabel:"كلمة مرور جديدة (اختياري)",
     newUser:"إضافة حساب لعضو فريق", addUserBtn:"إضافة حساب",
+    tabAccessTitle:"صلاحية التبويبات", tabAccessHint:"اختر التبويبات التي يمكن لكل عضو فتحها. تبويب الإعدادات متاح دائمًا، والمسؤولون يرون كل التبويبات دائمًا.",
+    allTabsAdmin:"كل التبويبات (مسؤول)", tabAccessNewUser:"التبويبات التي يمكن لهذا الحساب فتحها",
+    tabVisAdminLimited:"تظهر هنا فقط التبويبات التي منحك المسؤول صلاحية الوصول إليها.",
     usernamePasswordRequired:"اسم المستخدم وكلمة المرور مطلوبان.", usernameTaken:"اسم المستخدم هذا مُستخدم بالفعل.",
     saved:"تم الحفظ.",
   }
@@ -787,6 +804,10 @@ const state = {
   username: "",
   viewerName: "",
   role: null,
+  // Tabs an admin has allowed this account to open (from /api/me): null = all
+  // tabs (always the case for admins), else an array of HIDEABLE_TABS ids.
+  // Settings is always allowed. See isTabAllowed().
+  allowedTabs: null,
   authChecked: false,
   lang: "en",
   // Customer names are hidden per-person: whoever's id is in settings.restrictedViewers,
@@ -908,15 +929,33 @@ function getHiddenTabs(){
 function setHiddenTabs(arr){
   try{ localStorage.setItem("fillco_hidden_tabs", JSON.stringify(arr)); }catch(e){}
 }
+/* Admin-controlled tab access, on top of the per-device choice above: an admin can
+   limit a member account to some tabs (Settings → Team accounts → Tab access; stored
+   server-side as users.allowed_tabs, delivered as allowedTabs by /api/me). A tab the
+   admin hasn't allowed is hidden and can't be opened at all, and doesn't even appear
+   in "Your tabs"; within the allowed ones, each person can still hide what they don't
+   use on this device. Settings is always allowed. */
+function isTabAllowed(v){
+  if(v==="settings") return true;
+  if(!HIDEABLE_TABS.includes(v)) return false;
+  return !Array.isArray(state.allowedTabs) || state.allowedTabs.includes(v);
+}
+function allowedHideableTabs(){ return HIDEABLE_TABS.filter(isTabAllowed); }
+function isTabShown(v){
+  if(v==="settings") return true;
+  return isTabAllowed(v) && !getHiddenTabs().includes(v);
+}
+/* Where to land when the current view isn't available: the first tab that's both
+   allowed and not hidden on this device, else Settings (always there). */
+function firstShownView(){
+  return HIDEABLE_TABS.find(isTabShown) || "settings";
+}
 function applyTabVisibility(){
-  const hidden = new Set(getHiddenTabs());
   document.querySelectorAll(".tab").forEach(btn=>{
     const v = btn.dataset.view;
-    if(HIDEABLE_TABS.includes(v)) btn.hidden = hidden.has(v);
+    if(HIDEABLE_TABS.includes(v)) btn.hidden = !isTabShown(v);
   });
-  if(HIDEABLE_TABS.includes(state.view) && hidden.has(state.view)){
-    state.view = HIDEABLE_TABS.find(v=>!hidden.has(v)) || "dashboard";
-  }
+  if(!isTabShown(state.view)) state.view = firstShownView();
 }
 
 function recomputeCustomerVisibility(){
@@ -999,9 +1038,11 @@ function applySession(me){
   state.username = me.username;
   state.viewerName = me.displayName || me.username || "";
   state.role = me.role;
+  state.allowedTabs = (me.role!=="admin" && Array.isArray(me.allowedTabs)) ? me.allowedTabs : null;
   db = true;
   state.authChecked = true;
   recomputeCustomerVisibility();
+  applyTabVisibility();
 }
 function showApp(){
   const loginRoot = document.getElementById("loginRoot"); if(loginRoot) loginRoot.innerHTML = "";
@@ -1022,7 +1063,7 @@ function wireChrome(){
   document.getElementById("syncStatus").addEventListener("click", ()=>{ if(db) refreshAll(); });
   document.getElementById("logoutBtn").addEventListener("click", async ()=>{
     try{ await apiPost("/api/logout", {}); }catch(e){}
-    db = false; state.userId=null; state.username=""; state.viewerName=""; state.role=null; state.authChecked=false;
+    db = false; state.userId=null; state.username=""; state.viewerName=""; state.role=null; state.allowedTabs=null; state.authChecked=false;
     showLoginScreen();
   });
 }
@@ -1036,7 +1077,8 @@ async function fetchAll(){
   // recent logs (same as the original app's un-dated, most-recent-300 onSnapshot
   // cap), so this pulls a generously high recent slice by count instead — plenty
   // for a small shop's history, and still far cheaper than "everything forever".
-  const [orders, schedule, logs, deliverySlips, settings] = await Promise.all([
+  const [me, orders, schedule, logs, deliverySlips, settings] = await Promise.all([
+    apiGet("/api/me"), // re-read identity too, so an admin's role/tab-access change applies on Refresh
     apiGet("/api/orders?limit=1000"),
     apiGet("/api/schedule?limit=1000"),
     apiGet("/api/logs?limit=3000"),
@@ -1045,6 +1087,7 @@ async function fetchAll(){
   ]);
   state.orders = orders; state.schedule = schedule; state.logs = logs; state.deliverySlips = deliverySlips;
   state.settings = settings;
+  if(me) applySession(me);
   state.dbReady = true;
   sweepLoaded.schedule = true; sweepLoaded.logs = true;
   recomputeCustomerVisibility();
@@ -1308,6 +1351,9 @@ function render(){
     return;
   }
   pendingRender = false;
+  // Single choke point for every route into a view: never render a tab this
+  // account isn't allowed (or has hidden on this device) — fall back instead.
+  applyTabVisibility();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.view===state.view ? "true":"false"));
   const root = views;
   root.innerHTML = "";
@@ -3530,7 +3576,7 @@ function viewSettings(){
     });
   });
   tbl.appendChild(tb);
-  rateForm.appendChild(tbl);
+  rateForm.appendChild(el("div",{class:"table-wrap"},[tbl]));
 
   const addRow = el("div",{class:"form-grid", style:"margin-top:12px;"});
   const typeSel = selectEl("newType", PRODUCT_TYPES.map(p=>({value:p,label:p})));
@@ -3660,9 +3706,12 @@ function buildTabVisibilityCard(){
     el("h2",{},[t("tabVisTitle")]),
     el("span",{class:"hint"},[t("tabVisHint")])
   ]));
+  if(Array.isArray(state.allowedTabs)){
+    card.appendChild(el("div",{class:"hint", style:"font-size:11.5px; color:var(--text-mute); margin:-4px 0 10px;"},[t("tabVisAdminLimited")]));
+  }
   const hidden = new Set(getHiddenTabs());
   const list = el("div",{class:"row-flex"});
-  HIDEABLE_TABS.forEach(v=>{
+  allowedHideableTabs().forEach(v=>{
     const chk = el("input",{type:"checkbox"});
     if(!hidden.has(v)) chk.setAttribute("checked","checked");
     const lbl = el("label",{style:"flex-direction:row; align-items:center; gap:6px; font-weight:600; background:var(--surface-2); padding:6px 10px; border-radius:7px;"},[
@@ -3784,6 +3833,26 @@ function buildCustomerVisibilityCard(){
   return card;
 }
 
+/* A row of checkboxes, one per assignable tab (everything but Settings, which is
+   always allowed). allowed: null = all ticked. value() gives back null when every
+   box is ticked (= no restriction), else the ticked tab ids. */
+function buildTabAccessPicker(allowed){
+  const wrap = el("div",{class:"tab-chips"});
+  const boxes = HIDEABLE_TABS.map(v=>{
+    const chk = el("input",{type:"checkbox", value:v, "data-tab":v});
+    chk.checked = !Array.isArray(allowed) || allowed.includes(v);
+    wrap.appendChild(el("label",{class:"tab-chip"},[chk, document.createTextNode(t(TAB_LABEL_KEYS[v]))]));
+    return chk;
+  });
+  return {
+    node: wrap,
+    value(){
+      const ticked = boxes.filter(b=>b.checked).map(b=>b.value);
+      return ticked.length===HIDEABLE_TABS.length ? null : ticked;
+    },
+  };
+}
+
 /* Minimal admin screen for onboarding/managing team accounts — the new thing this
    self-hosted version needs that the original Artifact app never did, since Claude
    handled identity there. Admin-only (both here and server-side: /api/users is
@@ -3834,6 +3903,38 @@ function buildUsersAdminCard(){
       ]));
     });
     tbl.appendChild(tb); tw.appendChild(tbl); card.appendChild(tw);
+
+    // Tab access — kept out of the table above (which scrolls sideways on a phone)
+    // so each account's checkboxes can wrap to the screen width.
+    card.appendChild(el("div",{class:"section-title", style:"margin-top:14px;"},[t("tabAccessTitle")]));
+    card.appendChild(el("div",{class:"hint", style:"font-size:11.5px; color:var(--text-mute); margin:2px 0 4px;"},[t("tabAccessHint")]));
+    const accessList = el("div",{id:"tabAccessList"});
+    users.forEach(u=>{
+      const row = el("div",{class:"access-row", "data-user":u.username});
+      const who = el("div",{class:"who"});
+      who.appendChild(document.createTextNode(u.displayName||u.username));
+      who.appendChild(el("span",{class:"sub"},[el("bdi",{},["@"+u.username])]));
+      row.appendChild(who);
+      if(u.role==="admin"){
+        row.appendChild(el("span",{class:"pill accent"},[t("allTabsAdmin")]));
+      } else {
+        const picker = buildTabAccessPicker(u.allowedTabs);
+        const saveTabsBtn = el("button",{class:"btn sm"},[t("save")]);
+        saveTabsBtn.addEventListener("click", async ()=>{
+          saveTabsBtn.disabled = true;
+          try{
+            const updated = await apiPatch(`/api/users/${u.id}`, {allowedTabs: picker.value()});
+            mergeIntoState("users", updated);
+            showToast(t("saved"));
+            render();
+          }catch(e){ console.error(e); showToast(t("couldntSave")); saveTabsBtn.disabled = false; }
+        });
+        row.appendChild(picker.node);
+        row.appendChild(saveTabsBtn);
+      }
+      accessList.appendChild(row);
+    });
+    card.appendChild(accessList);
   }
 
   card.appendChild(el("div",{class:"section-title", style:"margin-top:14px;"},[t("newUser")]));
@@ -3846,6 +3947,14 @@ function buildUsersAdminCard(){
   form.appendChild(fieldWrap(t("displayNameLabel"), nameInp));
   form.appendChild(fieldWrap(t("password"), passInp));
   form.appendChild(fieldWrap(t("roleLabel"), roleSel));
+  // New members start with every tab ticked; untick to restrict. Admins always get all tabs.
+  const newPicker = buildTabAccessPicker(null);
+  const newTabsWrap = el("div",{style:"grid-column:1/-1; display:flex; flex-direction:column; gap:6px;"},[
+    el("span",{style:"font-size:11.5px; color:var(--text-mute); font-weight:600;"},[t("tabAccessNewUser")]),
+    newPicker.node,
+  ]);
+  form.appendChild(newTabsWrap);
+  roleSel.addEventListener("change", ()=>{ newTabsWrap.hidden = roleSel.value==="admin"; });
   const addBtn = el("button",{class:"btn sm"},[t("addUserBtn")]);
   form.appendChild(el("div",{},[addBtn]));
   card.appendChild(form);
@@ -3856,6 +3965,7 @@ function buildUsersAdminCard(){
       const row = await apiPost("/api/users", {
         username: userInp.value.trim(), password: passInp.value,
         displayName: nameInp.value.trim()||userInp.value.trim(), role: roleSel.value,
+        allowedTabs: roleSel.value==="admin" ? null : newPicker.value(),
       });
       mergeIntoState("users", row);
       userInp.value = ""; nameInp.value = ""; passInp.value = ""; roleSel.value = "member";
@@ -3893,7 +4003,7 @@ function selectEl(name, options, selected){
    on every click. */
 document.getElementById("tabs").addEventListener("click",(e)=>{
   const btn = e.target.closest(".tab");
-  if(!btn) return;
+  if(!btn || !isTabShown(btn.dataset.view)) return;
   state.view = btn.dataset.view;
   render();
   refetchForView(state.view);

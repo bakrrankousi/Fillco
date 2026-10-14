@@ -105,7 +105,8 @@ db.exec(`
     display_name TEXT NOT NULL DEFAULT '',
     role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin','member')),
     active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    allowed_tabs TEXT
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
@@ -239,6 +240,28 @@ db.exec(`
     next_slip_seq INTEGER NOT NULL DEFAULT 1
   );
 `);
+
+// --- In-place migrations for databases created by an older version --------
+// CREATE TABLE IF NOT EXISTS above never alters a table that already exists,
+// so any column added after the first release has to be added here, by
+// checking what the existing table actually has. Each step is idempotent
+// (safe to run on every startup) and only ever ADDs a nullable column, so
+// existing rows and data are left exactly as they were.
+function columnNames(table) {
+  return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+}
+function addColumnIfMissing(table, column, definition) {
+  if (columnNames(table).has(column)) return false;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  console.log(`[db] Migrated: added ${table}.${column}`);
+  return true;
+}
+
+// users.allowed_tabs — per-user tab access set by an admin (JSON text array
+// of tab ids). NULL = every tab, which is what all pre-existing accounts get,
+// so nobody's access changes on upgrade. See src/tabs.js.
+addColumnIfMissing("users", "allowed_tabs", "TEXT");
+// ---------------------------------------------------------------------------
 
 // Seed the single settings row, matching the original app's DEFAULT_RATES /
 // changeoverMin(45) / LINES(["Line 1","Line 2"]) fallbacks, if it doesn't exist yet.

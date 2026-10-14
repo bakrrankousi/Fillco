@@ -12,6 +12,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const db = require("./db");
 const config = require("./config");
+const { effectiveAllowedTabs } = require("./tabs");
 
 const COOKIE_NAME = "fillco_session";
 const BCRYPT_ROUNDS = 12;
@@ -49,7 +50,7 @@ function getUserBySession(sessionId) {
   if (!sessionId) return null;
   const row = db
     .prepare(
-      `SELECT s.id as session_id, s.expires_at, u.id, u.username, u.display_name, u.role, u.active
+      `SELECT s.id as session_id, s.expires_at, u.id, u.username, u.display_name, u.role, u.active, u.allowed_tabs
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.id = ?`
     )
@@ -65,6 +66,7 @@ function getUserBySession(sessionId) {
     username: row.username,
     displayName: row.display_name,
     role: row.role,
+    allowedTabs: effectiveAllowedTabs(row.role, row.allowed_tabs),
   };
 }
 

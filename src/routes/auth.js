@@ -3,6 +3,7 @@ const db = require("../db");
 const auth = require("../auth");
 const { wrap, badRequest, unauthorized } = require("../util/http");
 const { requireAuth } = require("../middleware/auth");
+const { effectiveAllowedTabs } = require("../tabs");
 
 const router = express.Router();
 
@@ -19,7 +20,13 @@ router.post(
     auth.sweepExpiredSessions();
     const session = auth.createSession(user.id);
     auth.setSessionCookie(res, session.id);
-    res.json({ id: user.id, username: user.username, displayName: user.display_name, role: user.role });
+    res.json({
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      role: user.role,
+      allowedTabs: effectiveAllowedTabs(user.role, user.allowed_tabs),
+    });
   })
 );
 
