@@ -1,4 +1,12 @@
-// SQLite storage, via better-sqlite3 (single file, zero external services).
+// SQLite storage, via node:sqlite — Node's own built-in SQLite binding
+// (single file, zero external services, and critically: zero native
+// compilation step on install, since it ships inside Node itself instead of
+// being a native addon node-gyp has to build from source). This project
+// used to run on better-sqlite3; that required a working Python +
+// C++-build-tools setup on every machine it was installed on (common to
+// fail on a non-technical end user's Windows PC), so it was swapped out for
+// node:sqlite, which needs nothing beyond Node.js itself. See README for the
+// minimum Node version this requires.
 //
 // Table shapes mirror the collections found in the live claude.ai Artifact
 // version of the Production Planner (orders / schedule / logs / deliverySlips /
@@ -6,12 +14,88 @@
 // identity, and `sessions` for the signed-cookie login system. See the
 // project README for the full field-by-field mapping and any deliberate
 // differences from the original Artifact's data model.
-const Database = require("better-sqlite3");
+const { DatabaseSync } = require("node:sqlite");
 const config = require("./config");
 
-const db = new Database(config.dbPath);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+const db = new DatabaseSync(config.dbPath);
+db.exec("PRAGMA journal_mode = WAL;");
+db.exec("PRAGMA foreign_keys = ON;");
+
+// --- better-sqlite3-API compatibility shims -------------------------------
+// The route/script code below was written against better-sqlite3's API and
+// is kept as-is; these two shims make node:sqlite's (slightly stricter/
+// leaner) API a drop-in match for the two behaviours it relies on:
+//
+// 1. Named-parameter objects with unused extra keys. better-sqlite3 silently
+//    ignores any object property that isn't referenced in the SQL (e.g.
+//    passing a whole row object — `{ ...existingRow, someField: x }` — to an
+//    UPDATE that only names some of its columns). node:sqlite's prepared
+//    statements throw "Unknown named parameter" on those by default,
+//    so every statement this module hands out has that check relaxed.
+const originalPrepare = db.prepare.bind(db);
+db.prepare = function prepare(sql) {
+  const stmt = originalPrepare(sql);
+  stmt.setAllowUnknownNamedParameters(true);
+  return stmt;
+};
+
+// 2. db.transaction(fn) — better-sqlite3's helper that runs fn() inside
+//    BEGIN/COMMIT (rolling back on a thrown error), returns a callable
+//    wrapper with .deferred()/.immediate()/.exclusive() variants picking the
+//    BEGIN mode, and — the part that matters here — transparently nests:
+//    calling one of these transactions while already inside another just
+//    opens a SAVEPOINT instead of a new top-level transaction, so the
+//    slip-numbering transaction (started with BEGIN IMMEDIATE to take the
+//    write lock up front) can be — and is, in routes/deliverySlips.js —
+//    invoked from inside an outer transaction without SQLite rejecting a
+//    "transaction within a transaction". node:sqlite has no such helper at
+//    all, so it's reimplemented here on top of plain exec() calls.
+let txnDepth = 0;
+let savepointCounter = 0;
+function makeTransactionRunner(fn, mode) {
+  return function runTransaction(...args) {
+    const isNested = txnDepth > 0;
+    const savepointName = `sp_${++savepointCounter}`;
+    if (isNested) {
+      db.exec(`SAVEPOINT ${savepointName}`);
+    } else {
+      db.exec(`BEGIN ${mode}`);
+    }
+    txnDepth++;
+    try {
+      const result = fn.apply(null, args);
+      txnDepth--;
+      if (isNested) {
+        db.exec(`RELEASE SAVEPOINT ${savepointName}`);
+      } else {
+        db.exec("COMMIT");
+      }
+      return result;
+    } catch (err) {
+      txnDepth--;
+      try {
+        if (isNested) {
+          db.exec(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+          db.exec(`RELEASE SAVEPOINT ${savepointName}`);
+        } else {
+          db.exec("ROLLBACK");
+        }
+      } catch (rollbackErr) {
+        // The DB connection is in a bad state if even rollback fails —
+        // surface the original error, which is what callers care about.
+      }
+      throw err;
+    }
+  };
+}
+db.transaction = function transaction(fn) {
+  const wrapper = makeTransactionRunner(fn, "DEFERRED");
+  wrapper.deferred = makeTransactionRunner(fn, "DEFERRED");
+  wrapper.immediate = makeTransactionRunner(fn, "IMMEDIATE");
+  wrapper.exclusive = makeTransactionRunner(fn, "EXCLUSIVE");
+  return wrapper;
+};
+// ---------------------------------------------------------------------------
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

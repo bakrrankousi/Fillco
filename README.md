@@ -18,9 +18,13 @@ browser shows the sign-in screen; log in with an account created below.
 - **A Windows PC or server** that stays on and connected to your office
   network — this is where the planner lives. Everyone else's device just
   connects to it over the network; nothing is installed on their side.
-- **Node.js**, version 18 or newer. Download it from
-  [nodejs.org](https://nodejs.org) (pick the "LTS" version) and run the
-  installer — just click through with the defaults.
+- **Node.js**, version 22.5 or newer (the "Current"/latest version from
+  [nodejs.org](https://nodejs.org) is always fine — it's always far newer
+  than this minimum). Download it and run the installer — just click
+  through with the defaults. No Python, no "Visual Studio Build Tools", and
+  no other prerequisite is needed: this app's database is Node's own
+  built-in SQLite support, not a separate native module, so there's nothing
+  else to install or configure for `npm install` to succeed.
 - This project's files, copied onto that PC (e.g. in `C:\Fillco`).
 
 To check Node installed correctly, open **Command Prompt** and type:
@@ -29,9 +33,9 @@ To check Node installed correctly, open **Command Prompt** and type:
 node --version
 ```
 
-It should print something like `v20.11.0`. If it says "not recognized",
-Node isn't installed yet (or you need to close and reopen Command Prompt
-after installing it).
+It should print something like `v22.14.0` (anything 22.5 or higher is
+fine). If it says "not recognized", Node isn't installed yet (or you need
+to close and reopen Command Prompt after installing it).
 
 ## 2. Install
 
