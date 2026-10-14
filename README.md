@@ -7,11 +7,11 @@ everyone on the shop floor and in the office can reach it from their own
 computer or phone over your local network — no internet, no Claude account,
 needed to use it day to day.
 
-This step sets up the **server and the database**. The actual screens
-(Dashboard, Log Production, Schedule, Loading, Orders, etc.) are a separate
-piece of work that comes next and will sit in the `public/` folder here.
-Right now, opening the server's address in a browser just shows a plain
-"Backend running" page — that's expected.
+The actual screens (Dashboard, Log Production, Schedule, Loading, Orders,
+etc.) live in `public/index.html` — a straight port of the old Artifact
+app's UI and business logic onto this server's own REST API and a real
+login (see the API section below). Opening the server's address in a
+browser shows the sign-in screen; log in with an account created below.
 
 ## 1. What you need first
 
@@ -177,9 +177,9 @@ anything with it.
 
 ## For developers: API surface
 
-A later phase ports the frontend to call this API instead of Claude's
-Artifact platform. Everything requires a valid session cookie (set by
-`POST /api/login`) except login itself.
+`public/index.html` (the ported frontend) calls this API instead of
+Claude's Artifact platform. Everything requires a valid session cookie
+(set by `POST /api/login`) except login itself.
 
 - `POST /api/login`, `POST /api/logout`, `GET /api/me`
 - `GET/POST /api/orders`, `GET/PUT/DELETE /api/orders/:id`
