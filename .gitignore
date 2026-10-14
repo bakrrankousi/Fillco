@@ -1,0 +1,9 @@
+node_modules/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+.env
+config.local.json
+npm-debug.log*

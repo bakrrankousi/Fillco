@@ -1,0 +1,21 @@
+{
+  "name": "fillco-production-planner-backend",
+  "version": "1.0.0",
+  "description": "Self-hosted backend for the FILLCO Production Planner (REST API + static frontend host).",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "create-admin": "node scripts/create-admin.js",
+    "import": "node scripts/import-from-export.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "better-sqlite3": "^11.3.0",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.21.0"
+  }
+}
